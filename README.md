@@ -6,13 +6,13 @@
 
 A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60.
 
-> [!IMPORTANT]
-> **Only firmware 3.60 is supported right now.** On 3.65 the plugin will not
-> load. Support for other firmware is being worked on.
-
 ![Headline figures](assets/headline.png)
 
 </div>
+
+> [!IMPORTANT]
+> **Only firmware 3.60 is supported right now.** Don't install it on 3.65 or
+> any other firmware. Support for other firmware is being worked on.
 
 ---
 
