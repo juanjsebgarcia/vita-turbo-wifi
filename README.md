@@ -98,7 +98,8 @@ when the screen sleeps, and auto-reconnect picks up again after a drop.
 Game streaming is all about steady latency. Power save adds 80–400 ms
 whenever traffic pauses; *Max performance* removes that, and 40 MHz halves
 the airtime of every frame. Pair it with
-[vita-moonlight](https://github.com/juanjsebgarcia/vita-moonlight).
+[vita-moonlight](https://github.com/xyzz/vita-moonlight)
+([my fork](https://github.com/juanjsebgarcia/vita-moonlight)).
 
 ### 🛠️ Wi-Fi driven development
 Building homebrew with
