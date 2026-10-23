@@ -103,9 +103,10 @@ the airtime of every frame. Pair it with
 
 ### 🛠️ Wi-Fi driven development
 Building homebrew with
-[vitacompanion](https://github.com/juanjsebgarcia/vitacompanion) (FTP uploads,
-remote launch, input injection, plugin reloads) means your dev loop runs over
-Wi-Fi. Wi-Fi Turbo keeps that loop alive: it reconnects after reboots and
+[vitacompanion](https://github.com/devnoname120/vitacompanion)
+([my fork](https://github.com/juanjsebgarcia/vitacompanion)), with its FTP
+uploads, remote launch, input injection and reboots, means your dev loop runs
+over Wi-Fi. Wi-Fi Turbo keeps that loop alive: it reconnects after reboots and
 drops on its own, keeps the console awake, and makes every round trip snappier.
 
 ## Screenshots
@@ -169,7 +170,8 @@ network doesn't like can never leave you stuck.
 Turn on **Developer mode (remote control)**, the last entry on the Wi-Fi Turbo
 page, and the plugin listens on TCP port **1339** on your LAN, handy for
 scripting and testing. It's **off by default**: with it off, nothing listens.
-It sits alongside [vitacompanion](https://github.com/juanjsebgarcia/vitacompanion),
+It sits alongside [vitacompanion](https://github.com/devnoname120/vitacompanion)
+([my fork](https://github.com/juanjsebgarcia/vitacompanion)),
 which uses ports 1337 and 1338. Send one command per connection, for example
 `tools/bench/vcmd.py <vita-ip> status`.
 
@@ -319,7 +321,8 @@ your network name and access point MAC addresses first.
 
 Built on [taiHEN](https://github.com/yifanlu/taiHEN),
 [VitaSDK](https://vitasdk.org) and
-[vitacompanion](https://github.com/juanjsebgarcia/vitacompanion). Thanks to
+[vitacompanion](https://github.com/devnoname120/vitacompanion)
+([my fork](https://github.com/juanjsebgarcia/vitacompanion)). Thanks to
 the PS Vita homebrew community.
 
 ## License
