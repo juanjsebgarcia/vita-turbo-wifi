@@ -467,8 +467,14 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 		if (secs <= 0) secs = 10;
 		int fd = sceNetSocket("wqudpsink", SCE_NET_AF_INET, SCE_NET_SOCK_DGRAM, 0);
 		if (fd < 0) { put(p, end, "udpsink: socket failed"); return WQ_ERR_CHIP; }
-		int b = 1024 * 1024;
-		sceNetSetsockopt(fd, WQ_SOL_SOCKET, WQ_SO_RCVBUF, &b, sizeof(b));
+		/* The stack's limit is 512 KB: a larger request fails outright and
+		 * leaves the small default, so ask for exactly the limit and log what
+		 * was applied. */
+		int b = 512 * 1024;
+		int sr = sceNetSetsockopt(fd, WQ_SOL_SOCKET, WQ_SO_RCVBUF, &b, sizeof(b));
+		int applied = 0; unsigned int ol = sizeof(applied);
+		sceNetGetsockopt(fd, WQ_SOL_SOCKET, WQ_SO_RCVBUF, &applied, &ol);
+		WQ_LOGI("udpsink: SO_RCVBUF request %d rc=0x%08x applied %d", b, (unsigned)sr, applied);
 		int to = 200 * 1000;                       /* 200 ms recv timeout      */
 		sceNetSetsockopt(fd, WQ_SOL_SOCKET, WQ_SO_RCVTIMEO, &to, sizeof(to));
 		SceNetSockaddrIn sa; memset(&sa, 0, sizeof(sa));
