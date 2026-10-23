@@ -202,6 +202,39 @@ need confirming.
 > Port 1339 is unauthenticated, like vitacompanion's ports. Use it on networks
 > you trust.
 
+## Battery life
+
+Wi-Fi Turbo's settings were measured on one Vita with the battery gauge's own
+average-current reading: screen off, connected 2 m from the access point, one
+pass of about 3 minutes per setting. "Load" is a continuous 100 Mbps UDP
+stream sent to the Vita.
+
+| Setting | Idle | Under load |
+|---|---|---|
+| **Sony defaults (20 MHz, Balanced)** | **196 mA** | **270 mA** |
+| 40 MHz, Balanced | 198 mA | 272 mA |
+| 40 MHz, Max performance | 235 mA | 272 mA |
+| 40 MHz, Battery saver | 190 mA | 274 mA |
+| 20 MHz, Max performance | 235 mA | 268 mA |
+| 20 MHz, Battery saver | 199 mA | 270 mA |
+
+- **40 MHz costs no battery.** It draws the same current as 20 MHz, idle and
+  under load, and moves about 40% more data while doing it.
+- **Max performance costs battery only when idle:** about 19% more current, or
+  roughly 2 hours of idle time with the screen off. Under load it costs nothing
+  extra, because the radio is awake either way.
+- **Battery saver** draws about the same as Balanced in these tests, but
+  responds more slowly after a pause.
+- **Smart Mesh Roaming** made no measurable difference (235 vs 236 mA).
+
+**In practice:** use **40 MHz with Balanced** day to day, and switch to **Max
+performance** for streaming, remote play or development, where its faster
+responses matter.
+
+These are screen-off figures from a single run; differences under about 10 mA
+are within measurement noise. With the screen on, battery life is much shorter
+and Wi-Fi is a smaller share of the total.
+
 ## Languages
 
 The Settings page follows your system language. Supported:
@@ -228,37 +261,56 @@ terms.
 
 ## Install
 
-**Requirements:** a PS Vita or PS TV on firmware **3.60** (tested), **3.65 or
-3.68** (alpha, from v0.2.0-alpha), with HENkaku or Ensō (taiHEN). Other
-firmware versions are not supported. For the 40 MHz
-option, an access point with its 2.4 GHz radio set to 40 MHz channel width.
+**Requirements:** a PS Vita or PS TV with HENkaku or Ensō (taiHEN), on one of
+these firmware versions. Other versions are not supported. For the 40 MHz
+option you also need an access point with its 2.4 GHz radio set to 40 MHz
+channel width.
 
-1. Download `wifiturbo_kernel.skprx` and `wifiturbo.suprx` from the latest
-   [release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases).
-2. Copy both files to `ur0:tai/` on the Vita, for example with VitaShell over
-   FTP or USB.
-3. Open `ur0:tai/config.txt` and add the lines below. If a `*KERNEL`, `*main`
-   or `*NPXS10015` section already exists, add the line under that section
-   instead of creating a second one.
+| Firmware | Download |
+|---|---|
+| 3.60 (tested) | [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest) |
+| 3.65, 3.68 (alpha) | [v0.2.0-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.0-alpha) (pre-release) |
+
+> On 3.65 or 3.68, make sure you take **v0.2.0-alpha**: GitHub's "Latest"
+> release is older and will not load on those firmware versions.
+
+1. Download `wifiturbo_kernel.skprx` and `wifiturbo.suprx` from the link for
+   your firmware.
+2. Copy both files to `ur0:tai/`, for example with VitaShell over FTP or USB.
+3. Edit `ur0:tai/config.txt` and add one line under each of three sections:
+
+   | Section | Line to add |
+   |---|---|
+   | `*KERNEL` | `ur0:tai/wifiturbo_kernel.skprx` |
+   | `*main` | `ur0:tai/wifiturbo.suprx` |
+   | `*NPXS10015` | `ur0:tai/wifiturbo.suprx` (adds the Settings page) |
+
+   HENkaku's default config already has these sections, so add the lines under
+   the existing ones. A typical file afterwards looks like this:
 
    ```
    *KERNEL
    ur0:tai/wifiturbo_kernel.skprx
-
    *main
+   ur0:tai/henkaku.suprx
    ur0:tai/wifiturbo.suprx
-
    *NPXS10015
+   ur0:tai/henkaku.suprx
    ur0:tai/wifiturbo.suprx
+   *NPXS10016
+   ur0:tai/henkaku.suprx
    ```
 
-   (`*NPXS10015` adds the Settings page.)
+   > If you also have a `ux0:tai/config.txt`, taiHEN reads that one and ignores
+   > `ur0:tai/config.txt`. Add the lines to whichever file your other plugins
+   > are in, keeping the `ur0:tai/...` paths.
 
-   > If you also have a `ux0:tai/config.txt`, taiHEN reads that one instead
-   > and ignores `ur0:tai/config.txt`. Add the lines to whichever file your
-   > other plugins are in, keeping the `ur0:tai/...` paths.
+4. **Reboot the Vita** (a "Refresh taiHEN config" from HENkaku Settings is not
+   enough). Then open *Settings → Network → Wi-Fi Turbo*.
 
-4. Reboot. Find the options under *Settings → Network → Wi-Fi Turbo*.
+**Not seeing the Settings entry?** Check that `ur0:tai/wifiturbo.suprx` is
+listed under `*NPXS10015` in the config file taiHEN actually reads (see the
+note on `ux0:tai/config.txt` above), then reboot.
 
 **To update:** replace both files and reboot. **To uninstall:** remove the
 lines from `config.txt`, reboot, then delete the two files and
