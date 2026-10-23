@@ -297,9 +297,7 @@ stack tops out around 40 Mbps, so UDP shows the 40 MHz gain best.
 This plugin changes how a kernel driver behaves, so it's built to fail safe:
 
 - **Easy undo.** Every change is undone by switching it back in Settings,
-  which works with Wi-Fi down. Remote changes over port 1339
-  also revert by themselves after 45 s unless confirmed, from a watchdog that
-  doesn't need the network.
+  which works with Wi-Fi down.
 - **Checked patches.** Each driver patch verifies the original instructions
   first and refuses to apply on a mismatch, such as another firmware or a
   conflicting plugin.
