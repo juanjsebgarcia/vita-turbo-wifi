@@ -277,7 +277,13 @@ channel width.
 1. Download `wifiturbo_kernel.skprx` and `wifiturbo.suprx` from the link for
    your firmware.
 2. Copy both files to `ur0:tai/`, for example with VitaShell over FTP or USB.
-3. Edit `ur0:tai/config.txt` and add one line under each of three sections:
+3. **Find your config file.** If `ux0:tai/config.txt` exists, edit **that**
+   one: taiHEN reads it first and ignores `ur0:tai/config.txt`. This is the
+   usual case on 3.65–3.68 with h-encore, which creates both files. Otherwise
+   edit `ur0:tai/config.txt`. Keep the `ur0:tai/...` paths for the plugin
+   files either way.
+
+   Add one line under each of three sections:
 
    | Section | Line to add |
    |---|---|
@@ -301,16 +307,12 @@ channel width.
    ur0:tai/henkaku.suprx
    ```
 
-   > If you also have a `ux0:tai/config.txt`, taiHEN reads that one and ignores
-   > `ur0:tai/config.txt`. Add the lines to whichever file your other plugins
-   > are in, keeping the `ur0:tai/...` paths.
-
 4. **Reboot the Vita** (a "Refresh taiHEN config" from HENkaku Settings is not
    enough). Then open *Settings → Network → Wi-Fi Turbo*.
 
 **Not seeing the Settings entry?** Check that `ur0:tai/wifiturbo.suprx` is
-listed under `*NPXS10015` in the config file taiHEN actually reads (see the
-note on `ux0:tai/config.txt` above), then reboot.
+listed under `*NPXS10015` in the config file taiHEN actually reads
+(`ux0:tai/config.txt` if it exists, see step 3), then reboot.
 
 **To update:** replace both files and reboot. **To uninstall:** remove the
 lines from `config.txt`, reboot, then delete the two files and
