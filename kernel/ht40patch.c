@@ -18,12 +18,12 @@
  * 0x2f44 command path, which is unsafe to hook. Each original byte is
  * verified first, so another firmware is refused rather than corrupted.
  */
-#include <psp2kern/kernel/modulemgr.h>  /* ksceKernelSearchModuleByName/GetModuleInfo */
 #include <psp2kern/kernel/sysclib.h>    /* memset                                     */
 #include <psp2kern/types.h>             /* SCE_KERNEL_PROCESS_ID                      */
 #include <taihen.h>
 
 #include "ht40patch.h"
+#include "wlanbt.h"
 #include "klog.h"
 #include "../include/wifiturbo.h"
 
@@ -60,27 +60,18 @@ int ht40patch_set(int on)
 	if (ht40patch_active())
 		return WQ_OK;
 
-	SceUID modid = ksceKernelSearchModuleByName("SceWlanBt");
-	if (modid < 0) {
-		WQ_KLOGW("ht40patch: SceWlanBt not found (%d)", modid);
+	SceUID modid;
+	uintptr_t text;
+	if (wlanbt_text(TXCAP_INSN_OFF + 2, &modid, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
-	}
-	SceKernelModuleInfo info;
-	memset(&info, 0, sizeof(info));
-	info.size = sizeof(info);
-	if (ksceKernelGetModuleInfo(SCE_KERNEL_PROCESS_ID, modid, &info) < 0 ||
-	    !info.segments[0].vaddr || info.segments[0].memsz <= TXCAP_INSN_OFF + 1) {
-		WQ_KLOGW("ht40patch: SceWlanBt text segment unavailable");
-		return WQ_ERR_RESOLVE;
-	}
-	const volatile uint8_t *t = (const volatile uint8_t *)info.segments[0].vaddr;
+	const volatile uint8_t *t = (const volatile uint8_t *)text;
 
-	/* Firmware check: the exact original instructions (3.60). */
+	/* Firmware check: the exact original instructions (3.60-3.68). */
 	if (t[HTCAP_INSN_OFF] != 0x4F || t[HTCAP_INSN_OFF + 1] != 0xF0 ||
 	    t[HTCAP_IMM_OFF] != HTCAP_20 || t[HTCAP_IMM_OFF + 1] != 0x0C ||
 	    t[TXCAP_INSN_OFF] != TXCAP_20 || t[TXCAP_INSN_OFF + 1] != 0x21) {
 		WQ_KLOGW("ht40patch: original bytes mismatch (%02x %02x %02x %02x / %02x %02x) "
-		         "- not 3.60 SceWlanBt, refusing",
+		         "- unexpected SceWlanBt, refusing",
 		         t[HTCAP_INSN_OFF], t[HTCAP_INSN_OFF + 1], t[HTCAP_IMM_OFF],
 		         t[HTCAP_IMM_OFF + 1], t[TXCAP_INSN_OFF], t[TXCAP_INSN_OFF + 1]);
 		return WQ_ERR_RESOLVE;

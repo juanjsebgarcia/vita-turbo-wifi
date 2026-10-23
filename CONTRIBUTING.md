@@ -33,7 +33,7 @@ Fix any new warnings in the code you touch. The build must stay clean.
 
 ## Testing on a Vita
 
-You need HENkaku/Ensō on firmware 3.60 and
+You need HENkaku/Ensō on firmware 3.60–3.68 and
 [vitacompanion](https://github.com/devnoname120/vitacompanion)
 ([my fork](https://github.com/juanjsebgarcia/vitacompanion)), which provides
 FTP on :1337 and commands on :1338.

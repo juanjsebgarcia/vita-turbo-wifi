@@ -35,12 +35,12 @@
  * original bytes are verified first so another firmware is refused rather
  * than corrupted.
  */
-#include <psp2kern/kernel/modulemgr.h>  /* ksceKernelSearchModuleByName/GetModuleInfo */
 #include <psp2kern/kernel/sysclib.h>    /* memset                                     */
 #include <psp2kern/types.h>
 #include <taihen.h>
 
 #include "psprofile.h"
+#include "wlanbt.h"
 #include "klog.h"
 #include "../include/wifiturbo.h"
 
@@ -70,28 +70,17 @@ int psprofile_dtim_set(int on)
 	if (psprofile_dtim_active())
 		return WQ_OK;
 
-	SceUID modid = ksceKernelSearchModuleByName("SceWlanBt");
-	if (modid < 0) {
-		WQ_KLOGW("psprofile: SceWlanBt not found (%d)", modid);
+	SceUID modid;
+	uintptr_t text;
+	if (wlanbt_text(PSB_SWAP_OFF + PSB_SWAP_LEN, &modid, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
-	}
-	SceKernelModuleInfo info;
-	memset(&info, 0, sizeof(info));
-	info.size = sizeof(info);
-	if (ksceKernelGetModuleInfo(SCE_KERNEL_PROCESS_ID, modid, &info) < 0 ||
-	    !info.segments[0].vaddr ||
-	    info.segments[0].memsz < PSB_SWAP_OFF + PSB_SWAP_LEN) {
-		WQ_KLOGW("psprofile: SceWlanBt text segment unavailable");
-		return WQ_ERR_RESOLVE;
-	}
-	const volatile uint8_t *t =
-		(const volatile uint8_t *)info.segments[0].vaddr + PSB_SWAP_OFF;
+	const volatile uint8_t *t = (const volatile uint8_t *)text + PSB_SWAP_OFF;
 
-	/* Firmware check: the exact original instruction pair (3.60). */
+	/* Firmware check: the exact original instruction pair (3.60-3.68). */
 	for (unsigned i = 0; i < PSB_SWAP_LEN; i++) {
 		if (t[i] != k_orig[i]) {
 			WQ_KLOGW("psprofile: original bytes mismatch at +%u "
-			         "(%02x %02x %02x %02x %02x %02x %02x %02x) - not 3.60 "
+			         "(%02x %02x %02x %02x %02x %02x %02x %02x) - unexpected "
 			         "SceWlanBt, refusing", i, t[0], t[1], t[2], t[3], t[4],
 			         t[5], t[6], t[7]);
 			return WQ_ERR_RESOLVE;
@@ -143,16 +132,9 @@ static int resolve_ps_flag(void)
 {
 	if (g_cfg_fn && g_ps_flag)
 		return WQ_OK;
-	SceUID modid = ksceKernelSearchModuleByName("SceWlanBt");
-	if (modid < 0)
+	uintptr_t text;
+	if (wlanbt_text(CFG_MOVT_OFF + 4, NULL, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
-	SceKernelModuleInfo info;
-	memset(&info, 0, sizeof(info));
-	info.size = sizeof(info);
-	if (ksceKernelGetModuleInfo(SCE_KERNEL_PROCESS_ID, modid, &info) < 0 ||
-	    !info.segments[0].vaddr || info.segments[0].memsz <= CFG_MOVT_OFF + 4)
-		return WQ_ERR_RESOLVE;
-	uintptr_t text = (uintptr_t)info.segments[0].vaddr;
 	const volatile uint8_t  *t8 = (const volatile uint8_t *)text;
 	if (t8[CFG_FN_OFF] != 0x2D || t8[CFG_FN_OFF + 1] != 0xE9 ||
 	    t8[CFG_FN_OFF + 2] != 0xF0 || t8[CFG_FN_OFF + 3] != 0x43) {
@@ -167,13 +149,7 @@ static int resolve_ps_flag(void)
 		return WQ_ERR_RESOLVE;
 	}
 	uintptr_t flag = ((t2_imm16(m[0], m[1]) << 16) | t2_imm16(w[0], w[1])) + CFG_FLAG_DELTA;
-	int in_data = 0;
-	for (int i = 1; i < 4; i++) {
-		uintptr_t v = (uintptr_t)info.segments[i].vaddr;
-		if (v && flag >= v && flag + 4 <= v + info.segments[i].memsz)
-			in_data = 1;
-	}
-	if (!in_data) {
+	if (!wlanbt_seg_contains(1, flag, 4)) {
 		WQ_KLOGW("psprofile: flag 0x%08x outside SceWlanBt data - refusing", (unsigned)flag);
 		return WQ_ERR_RESOLVE;
 	}

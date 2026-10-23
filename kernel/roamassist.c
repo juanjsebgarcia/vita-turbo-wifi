@@ -1,5 +1,5 @@
 /*
- * roamassist.c - one-shot join-path roam assist for SceWlanBt (3.60).
+ * roamassist.c - one-shot join-path roam assist for SceWlanBt (3.60-3.68).
  *
  * Why the Vita sticks to one AP: SceShell narrows the join's directed scan to
  * the ONE channel it first heard the SSID on (join request +0xb4..+0xb7), and
@@ -39,13 +39,13 @@
  * Hooks are installed on the first arm (never at boot) and stay installed;
  * disarmed they cost one load and a branch.
  */
-#include <psp2kern/kernel/modulemgr.h>  /* ksceKernelSearchModuleByName/GetModuleInfo */
 #include <psp2kern/kernel/threadmgr.h>  /* ksceKernelGetThreadId, GetSystemTimeWide   */
 #include <psp2kern/kernel/sysclib.h>    /* memcpy/memset/memcmp                      */
 #include <psp2kern/types.h>
 #include <taihen.h>
 
 #include "roamassist.h"
+#include "wlanbt.h"
 #include "klog.h"
 
 #define WLANBT_OFF_JOIN   0x6EA0u   /* FUN_81006ea0, ioctl 0x50110001 handler */
@@ -240,27 +240,18 @@ static int install_hooks(void)
 {
 	if (g_join_hook >= 0 && g_scan_hook >= 0)
 		return WQ_OK;
-	SceUID modid = ksceKernelSearchModuleByName("SceWlanBt");
-	if (modid < 0) {
-		WQ_KLOGW("roamassist: SceWlanBt not found (%d)", modid);
+	SceUID modid;
+	uintptr_t text;
+	if (wlanbt_text(WLANBT_OFF_SCAN + 8, &modid, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
-	}
-	SceKernelModuleInfo info;
-	memset(&info, 0, sizeof(info));
-	info.size = sizeof(info);
-	if (ksceKernelGetModuleInfo(SCE_KERNEL_PROCESS_ID, modid, &info) < 0 ||
-	    !info.segments[0].vaddr || info.segments[0].memsz <= WLANBT_OFF_SCAN + 8) {
-		WQ_KLOGW("roamassist: SceWlanBt text segment unavailable");
-		return WQ_ERR_RESOLVE;
-	}
-	const volatile uint8_t *t = (const volatile uint8_t *)info.segments[0].vaddr;
+	const volatile uint8_t *t = (const volatile uint8_t *)text;
 	static const uint8_t join0[4] = { 0x2D, 0xE9, 0xF0, 0x4F };
 	static const uint8_t scan0[8] = { 0xF8, 0xB5, 0x00, 0xF1, 0x08, 0x04, 0x05, 0x46 };
 	for (int i = 0; i < 8; i++) {
 		if ((i < 4 && t[WLANBT_OFF_JOIN + i] != join0[i]) ||
 		    t[WLANBT_OFF_SCAN + i] != scan0[i]) {
 			WQ_KLOGW("roamassist: original bytes mismatch (join %02x%02x%02x%02x "
-			         "scan %02x%02x%02x%02x) - not 3.60 SceWlanBt, refusing",
+			         "scan %02x%02x%02x%02x) - unexpected SceWlanBt, refusing",
 			         t[WLANBT_OFF_JOIN], t[WLANBT_OFF_JOIN + 1],
 			         t[WLANBT_OFF_JOIN + 2], t[WLANBT_OFF_JOIN + 3],
 			         t[WLANBT_OFF_SCAN], t[WLANBT_OFF_SCAN + 1],

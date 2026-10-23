@@ -2,7 +2,7 @@
  * netjoin.c - command SceShell's netctl daemon to (re)connect, by calling the
  * shell's OWN connect-signal routine in place.
  *
- * FUN_8115a028(enable) is what the shell runs to tell
+ * FUN_8115a028(enable) (3.60 address) is what the shell runs to tell
  * the netctl daemon to connect/disconnect - it just sets an event-flag bit on a
  * SceShell global (0x400=connect, 0x800=disconnect). Rather than resolve that
  * data global ourselves (SceShell's RW data segment is relocated independently
@@ -11,12 +11,14 @@
  * relocation, so it always hits the right one. We are injected into SceShell, so
  * the call runs in-process.
  *
- * Address resolution: FUN_8115a028 is at static address 0x8115a028, image text
- * base 0x81000000 (FUN_81000000). At runtime the text segment base is segments[0].vaddr from
- * sceKernelGetModuleInfo, so FUN_8115a028 = seg0.vaddr + 0x15a028 (Thumb, so set
- * bit 0). We validate seg0 is present and the target is inside it before calling;
- * a wrong base would be caught, and a hard fault is recoverable by holding L at
- * boot. No firmware writes, no radio bounce.
+ * Address resolution: the function sits at text +0x15a028 on 3.60 and +0x15a080
+ * on 3.65 and 3.68 (SceShell was rebuilt). Rather than trust either offset, we match its
+ * first 64 bytes against a signature with the firmware-dependent parts masked
+ * out (the movw/movt pair loading its data global, which moves with the data
+ * segment, and the PC-relative bl/blx to import stubs). The known offsets are
+ * tried first; otherwise the whole text segment is scanned and exactly one
+ * match is required. No match = the call is skipped (callers fall back to
+ * IcmConnect). The result is cached. No firmware writes, no radio bounce.
  */
 #include <psp2/types.h>
 #include <psp2/kernel/threadmgr.h>   /* sceKernelDelayThread                     */
@@ -30,13 +32,45 @@
 #include "log.h"
 #include "../include/wifiturbo.h"
 
-#define SHELL_TEXT_BASE_360      0x81000000u   /* SceShell 3.60 text segment base */
-#define SHELL_NETCTL_SIGNAL_360  0x8115A028u   /* shell netctl connect/disc sig */
+/* Signature of the shell's connect-signal routine (first 64 bytes, Thumb).
+ * Mask 0x00 = firmware-dependent byte (movw/movt immediates, bl/blx targets). */
+static const uint8_t k_sig[64] = {
+	0x10, 0xB5, 0x01, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x68, 0xC9, 0xB2, 0xB0, 0xF1, 0xFF, 0x3F, 0x1B, 0xD0, 0x69, 0xB1,
+	0x7F, 0xF4, 0x00, 0x61, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x68, 0x5F, 0xF4, 0x80, 0x61, 0x00, 0x00,
+	0x00, 0x00, 0x0C, 0xE0, 0x7F, 0xF4, 0x80, 0x61, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+};
+static const uint8_t k_sig_mask[64] = {
+	0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00,
+	0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00,
+};
+/* Where it was found in the shipped firmware: 3.60; 3.65 and 3.68. */
+static const uint32_t k_sig_known[] = { 0x15A028u, 0x15A080u };
 
-/* Resolve a SceShell text function (Thumb) at its real runtime address (SceShell
- * is ASLR'd per boot, so segments[0].vaddr + offset), or 0 on failure. */
-static uintptr_t resolve_shell_fn(unsigned static_addr)
+static int sig_match(const uint8_t *p)
 {
+	for (int i = 0; i < (int)sizeof(k_sig); i++)
+		if ((p[i] & k_sig_mask[i]) != k_sig[i])
+			return 0;
+	return 1;
+}
+
+/* Runtime address (Thumb bit set) of the shell's connect-signal routine, or 0.
+ * SceShell is ASLR'd per boot, so everything is relative to segments[0].vaddr. */
+static uintptr_t resolve_connect_sig(void)
+{
+	static uintptr_t s_fn;
+	static int s_done;
+	if (s_done)
+		return s_fn;
+	s_done = 1;
+
 	tai_module_info_t ti;
 	ti.size = sizeof(ti);
 	if (taiGetModuleInfo("SceShell", &ti) < 0)
@@ -45,26 +79,51 @@ static uintptr_t resolve_shell_fn(unsigned static_addr)
 	mi.size = sizeof(mi);
 	if (sceKernelGetModuleInfo(ti.modid, &mi) < 0)
 		return 0;
-	uintptr_t text = (uintptr_t)mi.segments[0].vaddr;
-	uintptr_t tend = text + mi.segments[0].memsz;
-	uintptr_t fn   = text + (static_addr - SHELL_TEXT_BASE_360);
-	if (text == 0 || fn < text || fn >= tend) {
-		WQ_LOGW("netjoin: bad text seg vaddr=0x%08x memsz=0x%x fn=0x%08x",
-		        (unsigned)text, (unsigned)mi.segments[0].memsz, (unsigned)fn);
+	const uint8_t *text = (const uint8_t *)mi.segments[0].vaddr;
+	uint32_t size = mi.segments[0].memsz;
+	if (!text || size < sizeof(k_sig)) {
+		WQ_LOGW("netjoin: bad SceShell text seg vaddr=0x%08x memsz=0x%x",
+		        (unsigned)(uintptr_t)text, (unsigned)size);
 		return 0;
 	}
-	return fn | 1u;                            /* Thumb bit                      */
+
+	uint32_t off = 0;
+	int found = 0;
+	for (unsigned k = 0; k < sizeof(k_sig_known) / sizeof(k_sig_known[0]); k++) {
+		uint32_t o = k_sig_known[k];
+		if (o <= size - sizeof(k_sig) && sig_match(text + o)) {
+			off = o;
+			found = 1;
+			break;
+		}
+	}
+	if (!found) {
+		for (uint32_t o = 0; o <= size - sizeof(k_sig) && found < 2; o += 2) {
+			if (sig_match(text + o)) {
+				off = o;
+				found++;
+			}
+		}
+	}
+	if (found != 1) {
+		WQ_LOGW("netjoin: connect-sig %s in SceShell - rejoin disabled",
+		        found ? "ambiguous" : "not found");
+		return 0;
+	}
+	s_fn = ((uintptr_t)text + off) | 1u;       /* Thumb bit                      */
+	WQ_LOGI("netjoin: connect-sig at SceShell text+0x%x", (unsigned)off);
+	return s_fn;
 }
 
 static int call_toggle(char enable, const char *what)
 {
-	uintptr_t fn = resolve_shell_fn(SHELL_NETCTL_SIGNAL_360);
+	uintptr_t fn = resolve_connect_sig();
 	if (!fn) {
 		WQ_LOGW("netjoin: %s - connect-sig unresolved", what);
 		return WQ_ERR_NOT_READY;
 	}
 	((void (*)(char))fn)(enable);
-	WQ_LOGI("netjoin: %s -> FUN_8115a028(%d)", what, enable);
+	WQ_LOGI("netjoin: %s -> connect-sig(%d)", what, enable);
 	return WQ_OK;
 }
 

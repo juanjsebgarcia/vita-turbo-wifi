@@ -4,15 +4,19 @@
 
 **The PS Vita's Wi-Fi, fixed: faster, quicker to respond, and it reconnects by itself.**
 
-A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60.
+A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60–3.68.
 
 ![Headline figures](assets/headline.png)
 
 </div>
 
 > [!IMPORTANT]
-> **Only firmware 3.60 is supported right now.** Don't install it on 3.65 or
-> any other firmware. Support for other firmware is being worked on.
+> **Firmware 3.60 is tested. 3.65 and 3.68 are in alpha** (from
+> [v0.2.0-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases)):
+> they should work, but haven't been confirmed on a console yet. If you try
+> it, please [open an issue](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues)
+> with your logs. Other firmware versions are not supported: don't install it
+> there.
 
 ---
 
@@ -224,8 +228,9 @@ terms.
 
 ## Install
 
-**Requirements:** a PS Vita or PS TV on firmware **3.60 only**, with HENkaku or
-Ensō (taiHEN). Other firmware versions are not supported yet. For the 40 MHz
+**Requirements:** a PS Vita or PS TV on firmware **3.60** (tested), **3.65 or
+3.68** (alpha, from v0.2.0-alpha), with HENkaku or Ensō (taiHEN). Other
+firmware versions are not supported. For the 40 MHz
 option, an access point with its 2.4 GHz radio set to 40 MHz channel width.
 
 1. Download `wifiturbo_kernel.skprx` and `wifiturbo.suprx` from the latest
@@ -303,7 +308,9 @@ This plugin changes how a kernel driver behaves, so it's built to fail safe:
   which works with Wi-Fi down.
 - **Checked patches.** Each driver patch verifies the original instructions
   first and refuses to apply on a mismatch, such as another firmware or a
-  conflicting plugin.
+  conflicting plugin. The one call into the system shell is located by a
+  signature that must match exactly once. A feature whose check fails logs why
+  and turns itself off.
 - **Gentle boot.** At boot the plugin restores your settings with a few
   checked byte patches and a driver flag, before the first Wi-Fi join. It never
   hooks the driver while the console is starting up.

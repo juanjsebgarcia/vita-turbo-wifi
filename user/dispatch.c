@@ -31,6 +31,7 @@
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/kernel/processmgr.h>   /* sceKernelGetProcessTimeWide (speedtest) */
 #include <psp2/kernel/clib.h>
+#include <psp2/kernel/modulemgr.h>  /* sceKernelGetSystemSwVersion (boot log)   */
 #include <string.h>
 
 #include "dispatch.h"
@@ -623,6 +624,13 @@ static int server_thread(SceSize args, void *argp)
 	int rs = wq_safety_init();   /* the revert spine                           */
 	if (rs != WQ_OK)
 		WQ_LOGE("wq_safety_init FAILED (rc=%d) - revert harness unavailable", rs);
+	/* Firmware, for bug reports only: it can be spoofed, so nothing is gated
+	 * on it - every patch and call checks its target bytes instead. */
+	SceKernelSystemSwVersion sw;
+	memset(&sw, 0, sizeof(sw));
+	sw.size = sizeof(sw);
+	if (sceKernelGetSystemSwVersion(&sw) >= 0)
+		WQ_LOGI("firmware: reports %s (0x%08x)", sw.versionString, (unsigned)sw.version);
 	int rd = diag_init();        /* SceNetCtl + drop-reason callback           */
 	if (rd != WQ_OK)
 		WQ_LOGW("diag_init rc=%d (SceNetCtl not ready)", rd);
