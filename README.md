@@ -44,7 +44,7 @@ modes interleaved so drifting radio conditions don't favour either side.
 
 | | Stock | Turbo | Change |
 |---|---|---|---|
-| UDP throughput (link capacity) | 42.8 Mbps | **62.5 Mbps** | **+46%** |
+| UDP throughput (link capacity) | 43.5 Mbps | **65.6 Mbps** | **+51%** |
 | TCP throughput | 33.9 Mbps | **40.6 Mbps** | **+20%** |
 | Wake-up latency, median | ~99 ms | **7.4 ms** | **13× faster** |
 | Wake-up latency, p95 | ~205 ms | **~20 ms** | **~10× faster** |
