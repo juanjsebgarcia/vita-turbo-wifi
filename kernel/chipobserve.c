@@ -6,10 +6,10 @@
  * The hook body is HOT PATH (it runs for every RSSI_INFO reply) so it does
  * ZERO I/O - only plain loads and stores into g_link.
  */
-#include <psp2kern/kernel/modulemgr.h>  /* ksceKernelSearchModuleByName        */
 #include <taihen.h>
 
 #include "chipobserve.h"
+#include "wlanbt.h"
 #include "klog.h"
 
 /* RSSI_INFO (0xA4) response body = mwifiex host_cmd_ds_802_11_rssi_info_rsp
@@ -66,9 +66,19 @@ int chipobserve_rssi_ensure(void)
 {
 	if (g_rssi_hook >= 0)
 		return WQ_OK;
-	SceUID modid = ksceKernelSearchModuleByName("SceWlanBt");
-	if (modid < 0)
+	SceUID modid;
+	uintptr_t text;
+	if (wlanbt_text(WLANBT_OFF_RSSI_CB + 6, &modid, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
+	/* Original prologue: ldr r3,[r0,#0x10]; cmp r3,#0x1e; bne (3.60-3.68). */
+	static const uint8_t orig[6] = { 0x03, 0x69, 0x1E, 0x2B, 0x1D, 0xD1 };
+	const volatile uint8_t *t = (const volatile uint8_t *)text + WLANBT_OFF_RSSI_CB;
+	for (int i = 0; i < 6; i++) {
+		if (t[i] != orig[i]) {
+			WQ_KLOGW("chipobserve: RSSI_INFO callback bytes mismatch - refusing");
+			return WQ_ERR_RESOLVE;
+		}
+	}
 	g_rssi_hook = taiHookFunctionOffsetForKernel(KERNEL_PID, &g_rssi_ref, modid, 0,
 	                                             WLANBT_OFF_RSSI_CB, 1, hook_rssi_cb);
 	if (g_rssi_hook < 0) {
