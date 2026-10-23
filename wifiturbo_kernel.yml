@@ -1,0 +1,29 @@
+wifiturbo_kernel:
+  attributes: 0
+  version:
+    major: 0
+    minor: 1
+  main:
+    start: module_start
+    stop: module_stop
+  libraries:
+    SceWifiTurbo:
+      syscall: true
+      functions:
+        - wqChipSet11nHt40
+        - wqHudSetEnabled
+        - wqHudSetState
+        - wqSelfTestPing
+        - wqHudGetStatus
+        - wqHudSetDrawArmed
+        - wqChipObserveGetLink
+        - wqUiSubmit
+        - wqUiReadState
+        - wqUiDrain
+        - wqUiPublish
+        - wqRoamAssistArm
+        - wqRoamAssistGetStatus
+        - wqPsSetDtimSkip
+        - wqPsGetDtimSkip
+        - wqPsSetFlag
+        - wqPsGetFlag
