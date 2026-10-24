@@ -82,7 +82,7 @@
   <text class="t" x="60" y="92"><tspan class="h1">Wi-Fi Turbo</tspan><tspan class="h1l"> for PS Vita</tspan></text>
   <text class="t h2" x="60" y="128">A taiHEN plugin that fixes the Vita's Wi-Fi. Stock vs Turbo, measured on hardware.</text>
   <rect x="918" y="58" width="222" height="42" rx="21" fill="#ffffff" fill-opacity="0.10" stroke="#ffffff" stroke-opacity="0.45"/>
-  <text class="t badge" x="1029" y="85" text-anchor="middle">FIRMWARE 3.60 ONLY</text>
+  <text class="t badge" x="1029" y="85" text-anchor="middle">FIRMWARE 3.6X ONLY</text>
 
   <!-- tiles -->
   <g>
