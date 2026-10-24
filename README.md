@@ -4,19 +4,19 @@
 
 **The PS Vita's Wi-Fi, fixed: faster, quicker to respond, and it reconnects by itself.**
 
-A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60–3.68.
+A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60, 3.65 and 3.68.
 
 ![Headline figures](assets/headline.png)
 
 </div>
 
 > [!IMPORTANT]
-> **Firmware 3.60 is tested. 3.65 and 3.68 are in alpha** (from
-> [v0.2.0-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases)):
-> they should work, but haven't been confirmed on a console yet. If you try
-> it, please [open an issue](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues)
-> with your logs. Other firmware versions are not supported: don't install it
-> there.
+> **Supported firmware: 3.60, 3.65 and 3.68**, all tested on a console (from
+> [v0.2.0](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest)).
+> Other firmware versions are not supported: don't install it there. If
+> something doesn't work, please
+> [open an issue](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues)
+> with your logs.
 
 ---
 
@@ -266,16 +266,17 @@ these firmware versions. Other versions are not supported. For the 40 MHz
 option you also need an access point with its 2.4 GHz radio set to 40 MHz
 channel width.
 
-| Firmware | Download |
-|---|---|
-| 3.60 (tested) | [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest) |
-| 3.65, 3.68 (alpha) | [v0.2.0-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.0-alpha) (pre-release) |
+| Firmware | Status | Download |
+|---|---|---|
+| 3.60 | Tested | [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest) |
+| 3.65 | Tested | [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest) |
+| 3.68 | Tested | [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest) |
 
-> On 3.65 or 3.68, make sure you take **v0.2.0-alpha**: GitHub's "Latest"
-> release is older and will not load on those firmware versions.
+> On 3.65 or 3.68 you need **v0.2.0 or later**: v0.1.0 does not load on those
+> firmware versions.
 
-1. Download `wifiturbo_kernel.skprx` and `wifiturbo.suprx` from the link for
-   your firmware.
+1. Download `wifiturbo_kernel.skprx` and `wifiturbo.suprx` from the
+   [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest).
 2. Copy both files to `ur0:tai/`, for example with VitaShell over FTP or USB.
 3. **Find your config file.** If `ux0:tai/config.txt` exists, edit **that**
    one: taiHEN reads it first and ignores `ur0:tai/config.txt`. This is the
