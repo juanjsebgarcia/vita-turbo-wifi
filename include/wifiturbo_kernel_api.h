@@ -75,7 +75,7 @@ int wqChipSet11nHt40(int enable, uint16_t *prev_htcap_out);
 
 typedef struct WqRxRingStats {
 	unsigned present;      /* 1 = SceWlanBt and its data segment resolved      */
-	unsigned build;        /* 223 (3.60/3.65) or 226 (3.68) from the delta, 0 = unknown */
+	unsigned build;        /* 223 (3.60-3.65) or 226 (3.67-3.74) from the delta, 0 = unknown */
 	unsigned loaded;       /* seg1+0x230: the image-loaded flag                */
 	unsigned img_addr;     /* seg1+0x228: cached image pointer                 */
 	unsigned img_size;     /* seg1+0x22c: cached image size                    */

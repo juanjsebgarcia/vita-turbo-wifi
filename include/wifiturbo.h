@@ -1,7 +1,7 @@
 /*
  * wifiturbo.h - shared constants and types for Wi-Fi Turbo (PS Vita Wi-Fi plugin).
  *
- * Firmware 3.60-3.68 CEX, taiHEN/HENkaku. Homebrew interoperability project for the
+ * Firmware 3.60-3.74 CEX, taiHEN/HENkaku. Homebrew interoperability project for the
  * device owner's own console. This header collects the magic numbers (NIDs,
  * struct offsets, reason codes) the C code relies on, with a short note on
  * what each one is.
@@ -22,7 +22,7 @@
 
 /* Release version. The .yml module versions carry major.minor (0.1); bump all
  * three together. Logged in both modules' init banner so a log pins the build. */
-#define WQ_VERSION_STR    "0.3.0-alpha"
+#define WQ_VERSION_STR    "0.3.1-alpha"
 
 #define WQ_SSID_MAX               32          /* each SSID 1..32 chars          */
 

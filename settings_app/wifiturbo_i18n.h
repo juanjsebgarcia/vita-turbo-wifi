@@ -1,6 +1,6 @@
 /*
  * wifiturbo_i18n.h - Internationalization (i18n) for the "Wi-Fi Turbo" Settings
- * sub-menu (NPXS10015 / SceSettings injection, firmware 3.60-3.68).
+ * sub-menu (NPXS10015 / SceSettings injection, firmware 3.60-3.74).
  *
  * This header declares:
  *   - a stable string ID per UI string (submenu title, row titles, list items,

@@ -1,5 +1,5 @@
 /*
- * roamassist.c - one-shot join-path roam assist for SceWlanBt (3.60-3.68).
+ * roamassist.c - one-shot join-path roam assist for SceWlanBt (3.60-3.74).
  *
  * Why the Vita sticks to one AP: SceShell narrows the join's directed scan to
  * the ONE channel it first heard the SSID on (join request +0xb4..+0xb7), and
@@ -38,6 +38,10 @@
  * hook: plain loads/stores and memcpy on a buffer the driver owns for this call.
  * Hooks are installed on the first arm (never at boot) and stay installed;
  * disarmed they cost one load and a branch.
+ *
+ * Addresses above are 3.60's. 3.71 moved both functions (join +0x712c, scan
+ * +0xb658) with the same request and scan-entry layout; the offsets come from
+ * the firmware's layout (wlanbt.c).
  */
 #include <psp2kern/kernel/threadmgr.h>  /* ksceKernelGetThreadId, GetSystemTimeWide   */
 #include <psp2kern/kernel/sysclib.h>    /* memcpy/memset/memcmp                      */
@@ -47,9 +51,6 @@
 #include "roamassist.h"
 #include "wlanbt.h"
 #include "klog.h"
-
-#define WLANBT_OFF_JOIN   0x6EA0u   /* FUN_81006ea0, ioctl 0x50110001 handler */
-#define WLANBT_OFF_SCAN   0xB3A0u   /* FUN_8100b3a0, scan wrapper             */
 
 #define REQ_OFF_RESULT    0x08      /* chosen BSS entry copied back here      */
 #define REQ_OFF_SSIDLEN   0x0C
@@ -240,29 +241,31 @@ static int install_hooks(void)
 {
 	if (g_join_hook >= 0 && g_scan_hook >= 0)
 		return WQ_OK;
+	const WlanbtLayout *l = wlanbt_layout();
 	SceUID modid;
 	uintptr_t text;
-	if (wlanbt_text(WLANBT_OFF_SCAN + 8, &modid, &text) != WQ_OK)
+	if (!l || wlanbt_text(l->scan + 8, &modid, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
+	const uint32_t off_join = l->join, off_scan = l->scan;
 	const volatile uint8_t *t = (const volatile uint8_t *)text;
 	static const uint8_t join0[4] = { 0x2D, 0xE9, 0xF0, 0x4F };
 	static const uint8_t scan0[8] = { 0xF8, 0xB5, 0x00, 0xF1, 0x08, 0x04, 0x05, 0x46 };
 	for (int i = 0; i < 8; i++) {
-		if ((i < 4 && t[WLANBT_OFF_JOIN + i] != join0[i]) ||
-		    t[WLANBT_OFF_SCAN + i] != scan0[i]) {
+		if ((i < 4 && t[off_join + i] != join0[i]) ||
+		    t[off_scan + i] != scan0[i]) {
 			WQ_KLOGW("roamassist: original bytes mismatch (join %02x%02x%02x%02x "
 			         "scan %02x%02x%02x%02x) - unexpected SceWlanBt, refusing",
-			         t[WLANBT_OFF_JOIN], t[WLANBT_OFF_JOIN + 1],
-			         t[WLANBT_OFF_JOIN + 2], t[WLANBT_OFF_JOIN + 3],
-			         t[WLANBT_OFF_SCAN], t[WLANBT_OFF_SCAN + 1],
-			         t[WLANBT_OFF_SCAN + 2], t[WLANBT_OFF_SCAN + 3]);
+			         t[off_join], t[off_join + 1],
+			         t[off_join + 2], t[off_join + 3],
+			         t[off_scan], t[off_scan + 1],
+			         t[off_scan + 2], t[off_scan + 3]);
 			return WQ_ERR_RESOLVE;
 		}
 	}
 	/* Scan hook first: it is inert until the join hook sets g_in_join. */
 	if (g_scan_hook < 0) {
 		g_scan_hook = taiHookFunctionOffsetForKernel(KERNEL_PID, &g_scan_ref, modid, 0,
-		                                             WLANBT_OFF_SCAN, 1, hook_scan);
+		                                             off_scan, 1, hook_scan);
 		if (g_scan_hook < 0) {
 			WQ_KLOGW("roamassist: scan hook failed (0x%08x)", (unsigned)g_scan_hook);
 			g_scan_hook = -1;
@@ -271,7 +274,7 @@ static int install_hooks(void)
 	}
 	if (g_join_hook < 0) {
 		g_join_hook = taiHookFunctionOffsetForKernel(KERNEL_PID, &g_join_ref, modid, 0,
-		                                             WLANBT_OFF_JOIN, 1, hook_join);
+		                                             off_join, 1, hook_join);
 		if (g_join_hook < 0) {
 			WQ_KLOGW("roamassist: join hook failed (0x%08x)", (unsigned)g_join_hook);
 			g_join_hook = -1;
@@ -279,7 +282,8 @@ static int install_hooks(void)
 		}
 	}
 	g_st.hooked = 1;
-	WQ_KLOGI("roamassist: hooked FUN_81006ea0 (join) + FUN_8100b3a0 (scan)");
+	WQ_KLOGI("roamassist: hooked join +0x%x + scan +0x%x", (unsigned)off_join,
+	         (unsigned)off_scan);
 	return WQ_OK;
 }
 

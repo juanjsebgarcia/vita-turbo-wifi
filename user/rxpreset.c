@@ -15,8 +15,8 @@
  * when it succeeds. If the cycle's watchdog had to reboot, the marker survives;
  * the next boot finds it, saves Stock and does not retry.
  *
- * Accepted on the 3.60/3.65 (p223) and 3.68 (p226) chip images. 3.68 has not
- * yet run on a console: it is offered as untested in the alpha.
+ * Accepted on the p223 (3.60-3.65) and p226 (3.67-3.74) chip images. p226
+ * has not yet run on a console: it is offered as untested in the alpha.
  */
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/net/netctl.h>   /* sceNetCtlInetGetState */

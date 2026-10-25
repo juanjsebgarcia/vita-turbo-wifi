@@ -1,4 +1,4 @@
-# CMake build for Wi-Fi Turbo, the PS Vita Wi-Fi plugin (firmware 3.60-3.68, taiHEN/HENkaku).
+# CMake build for Wi-Fi Turbo, the PS Vita Wi-Fi plugin (firmware 3.60-3.74, taiHEN/HENkaku).
 #
 # Two artifacts:
 #   wifiturbo_kernel.skprx - kernel module: SceWlanBt patches/hooks + HUD hook,

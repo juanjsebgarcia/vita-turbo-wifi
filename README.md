@@ -4,7 +4,7 @@
 
 **The PS Vita's Wi-Fi, fixed: faster, quicker to respond, and it reconnects by itself.**
 
-A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60, 3.65 and 3.68.
+A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60 to 3.74.
 
 ![Headline figures](assets/headline.png)
 
@@ -13,8 +13,11 @@ A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60, 3.65 
 > [!IMPORTANT]
 > **Supported firmware: 3.60, 3.65 and 3.68**, all tested on a console (from
 > [v0.2.0](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest)).
+> **Every other firmware from 3.61 to 3.74 is in alpha** from
+> [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha),
+> not yet tested on a console.
 > Other firmware versions are not supported: don't install it there.
-> **v0.3.0-alpha** adds the experimental
+> **v0.3.1-alpha** adds the experimental
 > [Wi-Fi receive buffer](#wi-fi-receive-buffer-experimental) option. If
 > something doesn't work, please
 > [open an issue](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues)
@@ -59,7 +62,7 @@ straight into RAM on the Vita (no memory card in the path). Wake-up latency is
 two runs of 30 pings sent 2 s apart, which gives the radio time to doze; that's the
 situation where power save hurts. See [Measuring it yourself](#measuring-it-yourself).
 
-### With the Wi-Fi receive buffer (v0.3.0-alpha)
+### With the Wi-Fi receive buffer (v0.3.1-alpha)
 
 Each row compares two setups in the same session, alternating between them;
 compare within a row, not across rows (signal strength differed between
@@ -183,8 +186,9 @@ more room by trimming a buffer Sony's firmware sizes for outgoing traffic.
   the Vita connects (one short Wi-Fi drop).
 - If a change ever fails to bring Wi-Fi back, the Vita restarts and the next
   boot falls back to *Default*.
-- **Firmware:** tested on 3.60; 3.65 uses the same Wi-Fi firmware. On 3.68
-  it is **untested**: if you try it, please
+- **Firmware:** the Wi-Fi chip's own firmware comes in two versions: one on
+  3.60 to 3.65 (tested on 3.60), another from 3.67 to 3.74. On 3.67 and later
+  the option is **untested on a console**: if you try it, please
   [report back](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues).
 
 ### Power profiles
@@ -318,14 +322,27 @@ channel width.
 | Firmware | Status | Download |
 |---|---|---|
 | 3.60 | Tested | [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest) |
+| 3.61 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
+| 3.63 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
 | 3.65 | Tested | [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest) |
+| 3.67 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
 | 3.68 | Tested | [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest) |
+| 3.69 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
+| 3.70 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
+| 3.71 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
+| 3.72 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
+| 3.73 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
+| 3.74 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
 
-> On 3.65 or 3.68 you need **v0.2.0 or later**: v0.1.0 does not load on those
-> firmware versions.
+> From 3.63 you need **v0.2.0 or later**: v0.1.0 does not load there. From
+> 3.71 you need **v0.2.1-alpha or later**: Sony changed the Wi-Fi driver in
+> 3.71, and older versions leave the 40 MHz, power profile, roaming and SNR
+> features switched off.
 
 1. Download `wifiturbo_kernel.skprx` and `wifiturbo.suprx` from the
-   [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest).
+   [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest)
+   (on a firmware marked alpha above, from
+   [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha)).
 2. Copy both files to `ur0:tai/`, for example with VitaShell over FTP or USB.
 3. **Find your config file.** If `ux0:tai/config.txt` exists, edit **that**
    one: taiHEN reads it first and ignores `ur0:tai/config.txt`. This is the
