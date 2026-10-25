@@ -89,6 +89,13 @@ enum wq_i18n_id {
 	WT_I18N_ROW_DEVMODE,        /* "Developer mode (remote control)" */
 	WT_I18N_HINT_DEVMODE,
 
+	/* EXPERIMENTAL chip RX buffer row and its three list items */
+	WT_I18N_ROW_RXRING,         /* "Wi-Fi receive buffer"     */
+	WT_I18N_ITEM_STOCK,         /* "Default" (stock firmware) */
+	WT_I18N_ITEM_ENHANCED,      /* "Enhanced"                 */
+	WT_I18N_ITEM_MAXIMUM,       /* "Maximum"                  */
+	WT_I18N_HINT_RXRING,
+
 	WT_I18N_COUNT
 };
 

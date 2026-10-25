@@ -46,6 +46,51 @@ int wqPsGetFlag(void);       /* 1 on, 0 off, <0 unresolved */
  * change (0x116e if the patch was active, else 0x112c). */
 int wqChipSet11nHt40(int enable, uint16_t *prev_htcap_out);
 
+/* EXPERIMENTAL: the Wi-Fi chip's receive buffer (kernel/rxring.c). The chip's
+ * single receive ring holds only ~12 full-size frames; a same-length edit of
+ * the chip firmware SceWlanBt keeps in memory (with the touched download
+ * blocks' checksums recomputed) grows it to 127 or 149 slots, shrinking a
+ * transmit buffer pool for the space. No code hooks. It takes effect at the
+ * next chip power-cycle (Wi-Fi and Bluetooth off, then on; user/rxcycle.c).
+ * Fully reversible to the exact original bytes.
+ *
+ * op low byte = sub-op; high bits (op >> 8) = size argument for APPLY. */
+#define WQ_RXRING_OP_STATUS   0   /* read status/counters, change nothing     */
+#define WQ_RXRING_OP_APPLY    1   /* | size << 8: apply 127, 149 or 171 slots  */
+#define WQ_RXRING_OP_RESTORE  2   /* restore the stock 83-slot image           */
+
+/* Latched until reboot once the cached image is not what we expect; the first
+ * reason wins. Operational failures (mutex) set last_rc but do not
+ * latch, so they can be retried. */
+#define WQ_RXRING_WHY_NONE      0
+#define WQ_RXRING_WHY_RESOLVE   1   /* SceWlanBt / its data segment not found   */
+#define WQ_RXRING_WHY_NOTLOADED 2   /* the image-loaded flag (seg1+0x230) is 0  */
+#define WQ_RXRING_WHY_SIZE      3   /* image size is neither known size         */
+#define WQ_RXRING_WHY_PTR       4   /* image pointer != its memblock base       */
+#define WQ_RXRING_WHY_DELTA     5   /* no single code delta (p223/p226) fits    */
+#define WQ_RXRING_WHY_BYTES     6   /* an original byte at a patch site differs */
+#define WQ_RXRING_WHY_CRC       7   /* a touched download chunk's CRC is wrong  */
+#define WQ_RXRING_WHY_MUTEX     8   /* could not take SceWlanBt's power mutex   */
+#define WQ_RXRING_WHY_REMAP     9   /* unused                                   */
+
+typedef struct WqRxRingStats {
+	unsigned present;      /* 1 = SceWlanBt and its data segment resolved      */
+	unsigned build;        /* 223 (3.60/3.65) or 226 (3.68) from the delta, 0 = unknown */
+	unsigned loaded;       /* seg1+0x230: the image-loaded flag                */
+	unsigned img_addr;     /* seg1+0x228: cached image pointer                 */
+	unsigned img_size;     /* seg1+0x22c: cached image size                    */
+	unsigned power;        /* seg1+0x4: power word (bit0 chip, bit1 WLAN, bit2 BT) */
+	unsigned slots;        /* ring slot count implied by the applied variant: 83/127/149/171 */
+	unsigned applied;      /* 0 stock, 127, 149 or 171                         */
+	unsigned delta;        /* code delta used (0 or 0xC8), 0xFFFFFFFF = undetermined */
+	unsigned chunks;       /* download chunks rewritten by the last apply/restore */
+	unsigned why;          /* WQ_RXRING_WHY_* (latched)                        */
+	unsigned why_detail;   /* failing chip address or field                    */
+	int      last_rc;      /* return code of the last op                       */
+} WqRxRingStats;
+int wqRxRing(int op, WqRxRingStats *out);   /* WQ_RXRING_OP_*; WQ_OK or WQ_ERR_* */
+int wqForceReboot(void);   /* EXPERIMENTAL: syscon reset, rxcycle watchdog last resort */
+
 /* ---- HUD renderer (read-only overlay) ----------------------------------- */
 
 /* Enable/disable the sceDisplaySetFrameBuf overlay hook. */
@@ -99,6 +144,9 @@ typedef struct {
 	int profile;    /* 0 maxperf / 1 balanced / 2 maxbatt */
 	int devmode;    /* Developer mode: :1339 remote-control listener on.
 	                 * Default 0 = off. */
+	int rxring;     /* EXPERIMENTAL Wi-Fi receive buffer: 0 default / 1 enhanced
+	                 * (127 slots) / 2 maximum (149). Last field: settings.bin
+	                 * from older builds is one int shorter and loads as 0. */
 } WqUiState;
 
 #define WQ_UI_CMD_MAX 64              /* command buffer size for wqUiSubmit/Drain */

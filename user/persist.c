@@ -27,13 +27,16 @@ void wq_persist_load(WqUiState *out)
 	if (fd < 0)
 		return;                       /* no saved settings - keep defaults */
 	wq_persist_blob b;
+	memset(&b, 0, sizeof(b));
 	int n = sceIoRead(fd, &b, sizeof(b));
 	sceIoClose(fd);
-	if (n == (int)sizeof(b) && b.magic == WQ_PERSIST_MAGIC)
+	/* Accept the previous layout too (no rxring field, one int shorter). */
+	if ((n == (int)sizeof(b) || n == (int)sizeof(b) - (int)sizeof(int)) &&
+	    b.magic == WQ_PERSIST_MAGIC)
 		*out = b.s;
 	WQ_LOGI("persist: loaded keepwifi=%d hud=%d autorecon=%d roam=%d ht40=%d "
-	        "profile=%d", out->keepwifi, out->hud,
-	        out->autoreconnect, out->roam, out->ht40, out->profile);
+	        "profile=%d rxring=%d", out->keepwifi, out->hud,
+	        out->autoreconnect, out->roam, out->ht40, out->profile, out->rxring);
 }
 
 void wq_persist_save(const WqUiState *s)

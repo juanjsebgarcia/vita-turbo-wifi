@@ -510,6 +510,126 @@ static const char *const g_tbl[WT_I18N_COUNT][WT_LANG_COUNT] = {
 	"Abre uma porta de controle remoto (TCP 1339) na sua rede para scripts e testes. Qualquer pessoa na mesma rede pode usá-la, então deixe desativado, a menos que precise.",
 	"Opens a remote-control port (TCP 1339) on your network for scripting and testing. Anyone on the same network can use it, so leave this off unless you need it.",
 	"Betikler ve testler için ağınızda bir uzaktan kontrol bağlantı noktası (TCP 1339) açar. Aynı ağdaki herkes kullanabilir, bu yüzden gerekmedikçe kapalı tutun."
+},
+
+/* WT_I18N_ROW_RXRING - "Wi-Fi receive buffer" */
+{
+	"Wi-Fi受信バッファ",
+	"Wi-Fi receive buffer",
+	"Tampon de réception Wi-Fi",
+	"Búfer de recepción Wi-Fi",
+	"Wi-Fi-Empfangspuffer",
+	"Buffer di ricezione Wi-Fi",
+	"Wi-Fi-ontvangstbuffer",
+	"Buffer de receção Wi-Fi",
+	"Буфер приёма Wi-Fi",
+	"Wi-Fi 수신 버퍼",
+	"Wi-Fi 接收緩衝區",
+	"Wi-Fi 接收缓冲区",
+	"Wi-Fi-vastaanottopuskuri",
+	"Wi-Fi-mottagningsbuffert",
+	"Wi-Fi-modtagebuffer",
+	"Wi-Fi-mottaksbuffer",
+	"Bufor odbioru Wi-Fi",
+	"Buffer de recepção Wi-Fi",
+	"Wi-Fi receive buffer",
+	"Wi-Fi alma arabelleği"
+},
+
+/* WT_I18N_ITEM_STOCK - "Default" */
+{
+	"標準",
+	"Default",
+	"Par défaut",
+	"Predeterminado",
+	"Standard",
+	"Predefinito",
+	"Standaard",
+	"Predefinido",
+	"По умолчанию",
+	"기본",
+	"預設",
+	"默认",
+	"Oletus",
+	"Standard",
+	"Standard",
+	"Standard",
+	"Domyślny",
+	"Padrão",
+	"Default",
+	"Varsayılan"
+},
+
+/* WT_I18N_ITEM_ENHANCED - "Enhanced" */
+{
+	"強化",
+	"Enhanced",
+	"Amélioré",
+	"Mejorado",
+	"Erweitert",
+	"Migliorato",
+	"Verbeterd",
+	"Melhorado",
+	"Улучшенный",
+	"향상",
+	"增強",
+	"增强",
+	"Tehostettu",
+	"Förbättrad",
+	"Forbedret",
+	"Forbedret",
+	"Rozszerzony",
+	"Aprimorado",
+	"Enhanced",
+	"Gelişmiş"
+},
+
+/* WT_I18N_ITEM_MAXIMUM - "Maximum" */
+{
+	"最大",
+	"Maximum",
+	"Maximum",
+	"Máximo",
+	"Maximal",
+	"Massimo",
+	"Maximaal",
+	"Máximo",
+	"Максимальный",
+	"최대",
+	"最大",
+	"最大",
+	"Maksimi",
+	"Maximal",
+	"Maksimal",
+	"Maksimal",
+	"Maksymalny",
+	"Máximo",
+	"Maximum",
+	"Maksimum"
+},
+
+/* WT_I18N_HINT_RXRING */
+{
+	"試験的機能。Wi-Fiチップの受信用メモリを増やし、ダウンロードを高速化します。変更するとWi-Fi（オンの場合はBluetoothも）が約20秒間オフになり、再びオンになります。",
+	"Experimental. Gives the Wi-Fi chip more room for incoming data, for faster downloads. Changing it turns Wi-Fi (and Bluetooth, if on) off and on for about 20 seconds.",
+	"Expérimental. Donne plus de place à la puce Wi-Fi pour les données entrantes, pour des téléchargements plus rapides. La modification éteint puis rallume le Wi-Fi (et le Bluetooth s'il est activé) pendant environ 20 secondes.",
+	"Experimental. Da al chip Wi-Fi más espacio para los datos entrantes, para descargas más rápidas. Al cambiarlo, el Wi-Fi (y el Bluetooth, si está activado) se apaga y se vuelve a encender durante unos 20 segundos.",
+	"Experimentell. Gibt dem Wi-Fi-Chip mehr Platz für eingehende Daten und beschleunigt Downloads. Beim Ändern werden Wi-Fi (und Bluetooth, falls aktiv) für etwa 20 Sekunden aus- und wieder eingeschaltet.",
+	"Sperimentale. Dà al chip Wi-Fi più spazio per i dati in arrivo, per download più veloci. Modificarlo spegne e riaccende il Wi-Fi (e il Bluetooth, se attivo) per circa 20 secondi.",
+	"Experimenteel. Geeft de Wi-Fi-chip meer ruimte voor binnenkomende gegevens, voor snellere downloads. Bij wijzigen gaan Wi-Fi (en Bluetooth, als het aan staat) ongeveer 20 seconden uit en weer aan.",
+	"Experimental. Dá ao chip Wi-Fi mais espaço para os dados recebidos, para transferências mais rápidas. Ao alterar, o Wi-Fi (e o Bluetooth, se ligado) desliga-se e volta a ligar durante cerca de 20 segundos.",
+	"Экспериментальная функция. Даёт чипу Wi-Fi больше места для входящих данных, ускоряя загрузку. При изменении Wi-Fi (и Bluetooth, если он включён) выключается и снова включается примерно на 20 секунд.",
+	"실험적 기능입니다. Wi-Fi 칩에 수신 데이터 공간을 더 주어 다운로드를 빠르게 합니다. 변경하면 Wi-Fi(켜져 있으면 Bluetooth도)가 약 20초 동안 꺼졌다가 다시 켜집니다.",
+	"實驗性功能。為 Wi-Fi 晶片提供更多接收資料的空間，加快下載速度。變更時，Wi-Fi（以及開啟中的藍牙）會關閉約 20 秒後重新開啟。",
+	"实验性功能。为 Wi-Fi 芯片提供更多接收数据的空间，加快下载速度。更改时，Wi-Fi（以及已开启的蓝牙）会关闭约 20 秒后重新开启。",
+	"Kokeellinen. Antaa Wi-Fi-sirulle enemmän tilaa saapuvalle datalle nopeampia latauksia varten. Muuttaminen sammuttaa ja käynnistää Wi-Fin (ja Bluetoothin, jos se on päällä) noin 20 sekunnin ajaksi.",
+	"Experimentell. Ger Wi-Fi-kretsen mer utrymme för inkommande data, för snabbare nedladdningar. När du ändrar den stängs Wi-Fi (och Bluetooth, om det är på) av och slås på igen under cirka 20 sekunder.",
+	"Eksperimentel. Giver Wi-Fi-chippen mere plads til indgående data for hurtigere downloads. Når du ændrer den, slukkes Wi-Fi (og Bluetooth, hvis det er tændt) og tændes igen i ca. 20 sekunder.",
+	"Eksperimentell. Gir Wi-Fi-brikken mer plass til innkommende data, for raskere nedlastinger. Når du endrer den, slås Wi-Fi (og Bluetooth, hvis det er på) av og på igjen i omtrent 20 sekunder.",
+	"Eksperymentalne. Daje układowi Wi-Fi więcej miejsca na dane przychodzące, przyspieszając pobieranie. Zmiana wyłącza i ponownie włącza Wi-Fi (oraz Bluetooth, jeśli jest włączony) na około 20 sekund.",
+	"Experimental. Dá ao chip Wi-Fi mais espaço para os dados recebidos, para downloads mais rápidos. Ao alterar, o Wi-Fi (e o Bluetooth, se estiver ligado) desliga e liga de novo por cerca de 20 segundos.",
+	"Experimental. Gives the Wi-Fi chip more room for incoming data, for faster downloads. Changing it turns Wi-Fi (and Bluetooth, if on) off and on for about 20 seconds.",
+	"Deneysel. Wi-Fi yongasına gelen veriler için daha fazla alan vererek indirmeleri hızlandırır. Değiştirildiğinde Wi-Fi (ve açıksa Bluetooth) yaklaşık 20 saniye kapanıp yeniden açılır."
 }
 
 };

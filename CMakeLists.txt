@@ -44,6 +44,7 @@ add_executable(wifiturbo_kernel
   kernel/chipobserve.c
   kernel/ht40patch.c
   kernel/wlanbt.c
+  kernel/rxring.c
   kernel/roamassist.c
   kernel/psprofile.c
   kernel/uibridge.c
@@ -62,6 +63,8 @@ target_link_libraries(wifiturbo_kernel
   SceDisplayForDriver_stub
   SceDebugForDriver_stub        # ksceDebugPrintf (kernel logger, kernel/klog.c)
   SceIofilemgrForDriver_stub    # ksceIoOpen/Write/... (kernel logfile)
+  SceCpuForDriver_stub          # dcache clean (rxring.c)
+  SceSysconForDriver_stub       # wqForceReboot (receive-buffer watchdog)
 )
 # taiHEN modules enter via module_start, not crt0's main - drop startup files.
 target_link_options(wifiturbo_kernel PRIVATE -nostartfiles)
@@ -100,6 +103,8 @@ add_executable(wifiturbo
   user/keepwifi.c
   user/keepalive.c
   user/netjoin.c
+  user/rxcycle.c
+  user/rxpreset.c
   user/persist.c
   user/settings_entry.c
   settings_app/wifiturbo_settings.c   # Settings-app hooks (run only in NPXS10015)
@@ -127,6 +132,7 @@ target_link_libraries(wifiturbo
   SceProcessmgr_stub_weak       # sceKernelPowerLock/Unlock/Tick (keepwifi.c)
   SceRegistryMgr_stub_weak      # sceRegMgrGetKeyInt (keepwifi.c wifi_flag)
   SceWlanBt_stub_weak           # sceWlanGet/SetConfiguration (keepwifi reconnect)
+  SceBt_stub_weak               # sceBtGet/SetConfiguration (rxcycle: chip power-down)
   SceKernelModulemgr_stub_weak  # sceKernelGetModuleInfo (netjoin seg base)
   SceAppUtil_stub_weak          # sceAppUtilSystemParamGetInt (i18n lang fallback)
 )

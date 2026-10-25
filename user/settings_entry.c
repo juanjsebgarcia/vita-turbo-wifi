@@ -12,6 +12,7 @@
 #include "settings_entry.h"
 #include "dispatch.h"
 #include "keepwifi.h"
+#include "rxpreset.h"       /* rxpreset_boot - chip RX buffer setting */
 #include "powerprofile.h"   /* wq_power_set_display_profile - HUD profile line */
 #include "persist.h"
 #include "log.h"
@@ -47,6 +48,11 @@ static int settings_track(const char *line)
 	else if (str_pre(line, "profile "))       g_settings.profile       =
 	             str_pre(line, "profile maxperf") ? 0 :
 	             str_pre(line, "profile balanced") ? 1 : 2;
+	else if (str_pre(line, "rxpreset stock") || str_pre(line, "rxpreset enhanced") ||
+	         str_pre(line, "rxpreset maximum"))
+	                                          g_settings.rxring        =
+	             str_pre(line, "rxpreset maximum") ? 2 :
+	             str_pre(line, "rxpreset enhanced") ? 1 : 0;
 	else return 0;
 	return memcmp(&b, &g_settings, sizeof(b)) != 0;
 }
@@ -80,6 +86,9 @@ void wq_settings_boot(void)
 	/* Profile + 40 MHz: driver patches and the PS flag, applied before the
 	 * first join (or with one reassociation if already connected). */
 	wq_power_boot_restore(g_settings.profile, g_settings.ht40);
+	/* Chip RX buffer: the chip booted on the stock image; re-apply the saved
+	 * preset with one radio power-cycle once Wi-Fi is up (user/rxpreset.c). */
+	rxpreset_boot(g_settings.rxring);
 	wqUiPublish(&g_settings);
 	WQ_LOGI("persist: applied saved settings at boot");
 }
