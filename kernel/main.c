@@ -33,6 +33,8 @@
 #include "hud.h"
 #include "psprofile.h"
 #include "klog.h"
+#include "rxring.h"
+#include <psp2kern/kernel/syscon.h>   /* ksceSysconSetPowerMode (wqForceReboot) */
 
 /* ---- copy-in/out helpers ------------------------------------------------ */
 
@@ -124,6 +126,27 @@ int wqHudSetState(const WqHudState *state)
 
 /* ---- read-only self-test probes ----------------------------------------- */
 
+/* EXPERIMENTAL: the Wi-Fi chip's receive buffer (rxring.c), WQ_RXRING_OP_*.
+ * Edits the chip firmware SceWlanBt keeps in memory; takes effect at the next
+ * chip power-cycle. Always fills *out. */
+int wqRxRing(int op, WqRxRingStats *out)
+{
+	WqRxRingStats s;
+	int r = rxring_op(op, &s);
+	if (out)
+		copy_to_user(out, &s, sizeof(s));
+	return r;
+}
+
+/* EXPERIMENTAL: last-resort reset for the receive-buffer power-cycle watchdog
+ * (user/rxcycle.c) when SceShell's own cold reset has not taken: a syscon
+ * power-mode reset. Abrupt, like holding the power button. */
+int wqForceReboot(void)
+{
+	WQ_KLOGW("wqForceReboot: syscon reset");
+	return ksceSysconSetPowerMode(2, 0);
+}
+
 int wqSelfTestPing(void)
 {
 	/* Pure proof-of-reachability: no chip, no link, no state change. A caller
@@ -183,6 +206,7 @@ int module_stop(SceSize argc, const void *args)
 	chipobserve_fini();   /* remove the RSSI_INFO callback hook if installed    */
 	roamassist_fini();    /* remove the join-path roam hooks if installed       */
 	psprofile_dtim_set(0); /* restore the stock PS_MODE_ENH builder          */
+	rxring_fini();         /* restore the stock chip image if a size was applied */
 	hud_fini();
 	wq_klog_fini();
 	return 0; /* SCE_KERNEL_STOP_SUCCESS */

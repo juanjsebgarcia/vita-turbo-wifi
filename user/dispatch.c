@@ -32,6 +32,7 @@
 #include <psp2/kernel/processmgr.h>   /* sceKernelGetProcessTimeWide (speedtest) */
 #include <psp2/kernel/clib.h>
 #include <psp2/kernel/modulemgr.h>  /* sceKernelGetSystemSwVersion (boot log)   */
+#include <psp2/kernel/sysmem.h>     /* speedtest buffer, only while a test runs */
 #include <string.h>
 
 #include "dispatch.h"
@@ -40,6 +41,7 @@
 #include "powerprofile.h"
 #include "advanced.h"
 #include "keepwifi.h"
+#include "rxpreset.h"
 #include "netjoin.h"
 #include "settings_entry.h"
 #include "log.h"
@@ -174,6 +176,8 @@ static int do_selftest(char *out, int outcap)
 #define WQ_SOL_SOCKET   0xffff
 #define WQ_SO_RCVBUF    0x1002
 #define WQ_SO_RCVTIMEO  0x1006     /* int, microseconds */
+#define WQ_SPEED_TMO_US 3000000    /* a stalled transfer ends the test, not the :1339 thread */
+#define WQ_SPEED_BUF    0x10000    /* speedtest receive buffer, allocated per test (64 KB) */
 
 static void dispatch_set_devmode(int on);   /* Developer mode, see below */
 
@@ -391,6 +395,20 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 	 * card, no browser. Pair with a one-liner on the host, e.g.:
 	 *   while :; do cat /dev/zero; done | nc -l 9999      (or a tiny socket server)
 	 * then: speedtest <host-ip> 9999 5 */
+	/* EXPERIMENTAL: 'rxpreset stock|enhanced|maximum' - the Wi-Fi receive
+	 * buffer setting (user/rxpreset.c; "stock" is shown as Default): edit the
+	 * chip image, then power-cycle the radio (and Bluetooth) if Wi-Fi is on.
+	 * Persisted like the other settings and re-applied after every boot. */
+	if ((a = tok_after(line, "rxpreset"))) {
+		int lv = rxpreset_level(a);
+		if (lv < 0) { put(p, end, "usage: rxpreset stock|enhanced|maximum"); return WQ_ERR_ARG; }
+		int r = rxpreset_set(lv);
+		put(p, end, r == WQ_OK ? "rxpreset: applying (Wi-Fi drops for ~20 s if it is on)"
+		          : r == WQ_ERR_BUSY ? "rxpreset: a change is already in progress"
+		                             : "rxpreset: could not start");
+		return r;
+	}
+
 	if ((a = tok_after(line, "speedtest"))) {
 		char ip[40]; int i = 0;
 		while (a[i] && a[i] != ' ' && i < 39) { ip[i] = a[i]; i++; }
@@ -428,17 +446,31 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 			put(p, end, "speedtest: connect failed (is the host server listening?)");
 			return WQ_ERR_CHIP;
 		}
-		static char sink[65536];
+		int tmo = WQ_SPEED_TMO_US;
+		sceNetSetsockopt(fd, WQ_SOL_SOCKET, WQ_SO_RCVTIMEO, &tmo, sizeof(tmo));
+		/* The 64 KB receive buffer lives only for the length of the test: as a
+		 * static it cost SceShell 64 KB of its fixed memory budget at all
+		 * times (issue #4). */
+		SceUID blk = sceKernelAllocMemBlock("wqspeedtest", SCE_KERNEL_MEMBLOCK_TYPE_USER_RW,
+		                                    WQ_SPEED_BUF, NULL);
+		char *sink = 0;
+		if (blk < 0 || sceKernelGetMemBlockBase(blk, (void **)&sink) < 0 || !sink) {
+			if (blk >= 0) sceKernelFreeMemBlock(blk);
+			sceNetSocketClose(fd);
+			put(p, end, "speedtest: not enough free memory for the receive buffer");
+			return WQ_ERR_NOT_READY;
+		}
 		unsigned long long total = 0;
 		SceInt64 t0 = sceKernelGetProcessTimeWide();
 		SceInt64 tend = t0 + (SceInt64)secs * 1000000;
 		for (;;) {
-			int n = sceNetRecv(fd, sink, sizeof(sink), 0);
+			int n = sceNetRecv(fd, sink, WQ_SPEED_BUF, 0);
 			if (n <= 0) break;
 			total += (unsigned)n;
 			if ((SceInt64)sceKernelGetProcessTimeWide() >= tend) break;
 		}
 		sceNetSocketClose(fd);
+		sceKernelFreeMemBlock(blk);
 		SceInt64 el = sceKernelGetProcessTimeWide() - t0; if (el < 1) el = 1;
 		unsigned mbps10 = (unsigned)((total * 8ULL * 10ULL) / (unsigned long long)el);
 		p = put(p, end, "speedtest: ");

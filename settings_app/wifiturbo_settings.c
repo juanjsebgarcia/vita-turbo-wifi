@@ -58,6 +58,11 @@ static const char WT_ROWS[] =
   "<list_item id=\"wt_p1\" title=\"wt_i_balanced\" value=\"1\"/>"
   "<list_item id=\"wt_p2\" title=\"wt_i_battery\" value=\"2\"/>"
  "</list>"
+ "<list id=\"wt_rxring\" title=\"wt_t_rxring\" icon=\"tex_spanner\" hint=\"wt_h_rxring\" key=\"/CONFIG/WIFITURBO/rxring\">"
+  "<list_item id=\"wt_r0\" title=\"wt_i_stock\" value=\"0\"/>"
+  "<list_item id=\"wt_r1\" title=\"wt_i_enhanced\" value=\"1\"/>"
+  "<list_item id=\"wt_r2\" title=\"wt_i_maximum\" value=\"2\"/>"
+ "</list>"
  "<toggle_switch id=\"wt_devmode\" title=\"wt_t_devmode\" icon=\"tex_spanner\" hint=\"wt_h_devmode\" key=\"/CONFIG/WIFITURBO/devmode\"/>"
 "</setting_list>";
 
@@ -98,6 +103,11 @@ static const wt_u16 *WT_TEXT(const char *id)
 	M("wt_h_btwarn",    WT_I18N_HINT_BTWARN)
 	M("wt_t_devmode",   WT_I18N_ROW_DEVMODE)
 	M("wt_h_devmode",   WT_I18N_HINT_DEVMODE)
+	M("wt_t_rxring",    WT_I18N_ROW_RXRING)
+	M("wt_i_stock",     WT_I18N_ITEM_STOCK)
+	M("wt_i_enhanced",  WT_I18N_ITEM_ENHANCED)
+	M("wt_i_maximum",   WT_I18N_ITEM_MAXIMUM)
+	M("wt_h_rxring",    WT_I18N_HINT_RXRING)
 	#undef M
 	if (wtid < 0)
 		return 0;
@@ -181,6 +191,7 @@ static int *wt_field(const char *name)
 	if (s_eqn(name,"ht40",5))           return &g_ui.ht40;
 	if (s_eqn(name,"profile",8))        return &g_ui.profile;
 	if (s_eqn(name,"devmode",8))        return &g_ui.devmode;
+	if (s_eqn(name,"rxring",7))         return &g_ui.rxring;
 	return 0;
 }
 static void wt_seed(void) { if (!g_ui_init) { wqUiReadState(&g_ui); g_ui_init = 1; } }
@@ -204,6 +215,9 @@ static int set_hook(const char *cat, const char *name, int v)
 		char line[WQ_UI_CMD_MAX]; int n = 0;
 		if (s_eqn(name,"profile",8)) {
 			const char *p = (v==0)?"profile maxperf":(v==1)?"profile balanced":"profile maxbatt";
+			while (p[n]) { line[n]=p[n]; n++; }
+		} else if (s_eqn(name,"rxring",7)) {
+			const char *p = (v==2)?"rxpreset maximum":(v==1)?"rxpreset enhanced":"rxpreset stock";
 			while (p[n]) { line[n]=p[n]; n++; }
 		} else {
 			int ln = s_len(name); s_cpy(line, name, ln); n = ln;
