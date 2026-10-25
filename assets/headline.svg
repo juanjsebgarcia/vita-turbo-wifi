@@ -104,23 +104,23 @@
   </g>
 
   <g filter="url(#glow)">
-    <text class="t big" x="88"  y="252">+51%</text>
+    <text class="t big" x="88"  y="252">+58%</text>
     <text class="t big" x="458" y="252">13×</text>
     <text class="t big" x="828" y="252">150</text>
-    <text class="t big" x="88"  y="476">+20%</text>
+    <text class="t big" x="88"  y="476">+47%</text>
     <text class="t big" x="458" y="476">~30 s</text>
     <text class="t big" x="828" y="476">3 s</text>
   </g>
 
   <text class="t lbl" x="88"  y="296">UDP throughput</text>
-  <text class="t sub" x="88"  y="328">43.5 → 65.6 Mbps</text>
+  <text class="t sub" x="88"  y="328">44.0 → 69.5 Mbps</text>
   <text class="t lbl" x="458" y="296">faster wake-up latency</text>
   <text class="t sub" x="458" y="328">~99 ms → 7.4 ms median</text>
   <text class="t lbl" x="828" y="296">Mbps link rate (40 MHz)</text>
   <text class="t sub" x="828" y="328">stock radio stops at 72 Mbps</text>
 
   <text class="t lbl" x="88"  y="520">TCP throughput</text>
-  <text class="t sub" x="88"  y="552">33.9 → 40.6 Mbps</text>
+  <text class="t sub" x="88"  y="552">34.2 → 50.4 Mbps</text>
   <text class="t lbl" x="458" y="520">auto-connect from cold boot</text>
   <text class="t sub" x="458" y="552">stock: gives up, waits for you</text>
   <text class="t lbl" x="828" y="520">back online after a drop</text>

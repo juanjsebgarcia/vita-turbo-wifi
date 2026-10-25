@@ -13,7 +13,9 @@ A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60, 3.65 
 > [!IMPORTANT]
 > **Supported firmware: 3.60, 3.65 and 3.68**, all tested on a console (from
 > [v0.2.0](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest)).
-> Other firmware versions are not supported: don't install it there. If
+> Other firmware versions are not supported: don't install it there.
+> **v0.3.0-alpha** adds the experimental
+> [Wi-Fi receive buffer](#wi-fi-receive-buffer-experimental) option. If
 > something doesn't work, please
 > [open an issue](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues)
 > with your logs.
@@ -57,6 +59,21 @@ straight into RAM on the Vita (no memory card in the path). Wake-up latency is
 two runs of 30 pings sent 2 s apart, which gives the radio time to doze; that's the
 situation where power save hurts. See [Measuring it yourself](#measuring-it-yourself).
 
+### With the Wi-Fi receive buffer (v0.3.0-alpha)
+
+Each row compares two setups in the same session, alternating between them;
+compare within a row, not across rows (signal strength differed between
+sessions).
+
+| Comparison | UDP download | TCP download | TCP upload |
+|---|---|---|---|
+| Stock (20 MHz, Balanced) vs Turbo (40 MHz, Max performance, buffer *Maximum*) | 44.0 → **69.5 Mbps** (+58%) | 34.2 → **50.4 Mbps** (+47%) | |
+| Receive buffer *Default* vs *Enhanced* (both 40 MHz, Max performance) | 65.0 → **69.5 Mbps** (+7%) | 34.4 → **40.2 Mbps** (+17%) | |
+| Receive buffer *Default* vs *Maximum* (both 40 MHz, Max performance) | 62.7 → **67.4 Mbps** (+7%) | 42.6 → **50.4 Mbps** (+18%) | 19.5 → **39.1 Mbps** (2×) |
+
+Medians of 6 to 10 runs of 10 s per setup. TCP gains the most because a full
+buffer drops packets, and TCP slows down after every loss.
+
 ## Features
 
 - 🚀 **40 MHz channels (HT40).** Unlocks the wide channel the radio already
@@ -82,6 +99,10 @@ situation where power save hurts. See [Measuring it yourself](#measuring-it-your
 - 🧭 **Smart Mesh Roaming**. For mesh and multi-AP setups:
   on a weak signal it rescans every channel and joins the strongest access
   point of the same network.
+- 🧠 **Wi-Fi receive buffer (experimental).** Gives the Wi-Fi chip more room
+  for incoming data, so bursts stop overflowing it: up to **+18% TCP
+  download** and steadier uploads. See
+  [below](#wi-fi-receive-buffer-experimental).
 - 🎛️ **Native Settings page.** Everything lives in *Settings → Network → Wi-Fi
   Turbo*, in your system language.
 - 🛡️ **Safe by design.** Every patch checks its target first, the driver is
@@ -137,7 +158,34 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 | **Smart Mesh Roaming** | On sustained weak signal, rescans and joins the strongest AP of the same network. | Off |
 | **40 MHz** | Lets the Vita negotiate 40 MHz channels. Needs an access point with 2.4 GHz set to 40 MHz. | Off |
 | **Power profile** | *Max performance*, *Balanced* or *Battery saver* (below). | Balanced |
+| **Wi-Fi receive buffer** | *Default*, *Enhanced* or *Maximum* (experimental, below). Changing it turns Wi-Fi off and on for about 20 s. | Default |
 | **Developer mode (remote control)** | Opens the remote-control port 1339 on your network, for scripting and testing (below). | Off |
+
+### Wi-Fi receive buffer (experimental)
+
+Taking a page from Naughty Dog: in Ars Technica's
+[War Stories on Crash Bandicoot](https://youtu.be/izxXGuVL21o), Andy Gavin
+explains how they got more out of the original PlayStation's memory than
+Sony intended. *Wi-Fi receive buffer* takes a similar approach:
+it re-divides the Wi-Fi chip's own memory, giving incoming data up to 80 %
+more room by trimming a buffer Sony's firmware sizes for outgoing traffic.
+
+| Setting | Receive room | Notes |
+|---|---|---|
+| *Default* | Sony's original (about 12 full-size packets) | Nothing changed |
+| *Enhanced* | +53 % (about 18 packets) | Most of the gain, more headroom for outgoing data |
+| *Maximum* | +80 % (about 21 packets) | A little faster again; passed a 30-minute stress run |
+
+- Changing it turns Wi-Fi off and on for about **20 seconds**. If Bluetooth
+  is on, it is switched off for those few seconds too (the chip only resets
+  with both off); paired devices reconnect by themselves.
+- After a reboot the setting is re-applied automatically, about 20 s after
+  the Vita connects (one short Wi-Fi drop).
+- If a change ever fails to bring Wi-Fi back, the Vita restarts and the next
+  boot falls back to *Default*.
+- **Firmware:** tested on 3.60; 3.65 uses the same Wi-Fi firmware. On 3.68
+  it is **untested**: if you try it, please
+  [report back](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues).
 
 ### Power profiles
 
@@ -189,6 +237,7 @@ which uses ports 1337 and 1338. Send one command per connection, for example
 | `devmode off` | Close the remote-control port (turn it back on in Settings) |
 | `roam on \| off`, `roam now`, `roam status` | Smart Mesh Roaming |
 | `icm` | Ask the system to connect to your saved networks now |
+| `rxpreset stock \| enhanced \| maximum` | Set the Wi-Fi receive buffer (*stock* is *Default*) |
 | `speedtest <host-ip> <port> [secs] [rcvbuf_kb]` | TCP download into RAM from a host on your LAN |
 | `udpsink <port> [secs]` | Count a UDP stream: raw link capacity and loss |
 | `log dump`, `log level <level>` | Read or tune the plugin log |
