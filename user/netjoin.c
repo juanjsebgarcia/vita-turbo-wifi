@@ -11,14 +11,15 @@
  * relocation, so it always hits the right one. We are injected into SceShell, so
  * the call runs in-process.
  *
- * Address resolution: the function sits at text +0x15a028 on 3.60 and +0x15a080
- * on 3.65 and 3.68 (SceShell was rebuilt). Rather than trust either offset, we match its
- * first 64 bytes against a signature with the firmware-dependent parts masked
- * out (the movw/movt pair loading its data global, which moves with the data
- * segment, and the PC-relative bl/blx to import stubs). The known offsets are
- * tried first; otherwise the whole text segment is scanned and exactly one
- * match is required. No match = the call is skipped (callers fall back to
- * IcmConnect). The result is cached. No firmware writes, no radio bounce.
+ * Address resolution: the function sits at text +0x15a028 on 3.60 and 3.61 and
+ * +0x15a080 from 3.63 to 3.74 (SceShell was rebuilt). Rather than trust either
+ * offset, we match its first 64 bytes against a signature with the
+ * firmware-dependent parts masked out (the movw/movt pair loading its data
+ * global, which moves with the data segment, and the PC-relative bl/blx to
+ * import stubs). The known offsets are tried first; otherwise the whole text
+ * segment is scanned and exactly one match is required. No match = the call
+ * is skipped (callers fall back to IcmConnect). The result is cached. No
+ * firmware writes, no radio bounce.
  */
 #include <psp2/types.h>
 #include <psp2/kernel/threadmgr.h>   /* sceKernelDelayThread                     */
@@ -50,7 +51,7 @@ static const uint8_t k_sig_mask[64] = {
 	0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,
 };
-/* Where it was found in the shipped firmware: 3.60; 3.65 and 3.68. */
+/* Where it was found in the shipped firmware: 3.60-3.61; 3.63-3.74. */
 static const uint32_t k_sig_known[] = { 0x15A028u, 0x15A080u };
 
 static int sig_match(const uint8_t *p)

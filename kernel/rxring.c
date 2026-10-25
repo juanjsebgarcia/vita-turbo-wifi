@@ -13,7 +13,7 @@
  * Safety rules:
  *   - refuses unless the image is loaded, one of the two known sizes, its
  *     pointer is the base of its memblock, every original byte at every edit
- *     site matches at a single offset (0 for 3.60/3.65, 0xC8 for 3.68)
+ *     site matches at a single offset (0 for p223, 0xC8 for p226)
  *     consistent with the image size, and every touched block's checksums
  *     verify before any edit;
  *   - applies every edit for the chosen size, never a subset, and recomputes
@@ -53,8 +53,8 @@ int module_get_offset(SceUID pid, SceUID modid, int segidx, size_t offset, uintp
 #define RXR_SEG1_LOADED  0x230u   /* loaded flag (image read once at boot)        */
 #define RXR_SEG1_NEED    0x234u   /* bytes from the base we read                  */
 
-#define RXR_SIZE_P223    403696u  /* 3.60 / 3.65 */
-#define RXR_SIZE_P226    403916u  /* 3.68        */
+#define RXR_SIZE_P223    403696u  /* 3.60-3.65 */
+#define RXR_SIZE_P226    403916u  /* 3.67-3.74 */
 #define RXR_DELTA_P226   0xC8u    /* p226 code sites sit +0xC8 later              */
 
 /* Variants, in table-column order. */
