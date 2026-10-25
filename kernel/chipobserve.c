@@ -31,8 +31,8 @@ static WqLinkInternals g_link;
  * body length (0x1e = mwifiex rssi_info_rsp). Hooking THAT callback sees only
  * RSSI_INFO replies - never the association burst or the blocking 0x2f44
  * path. Plain loads + stores only.
- * Installed lazily (chipobserve_rssi_ensure) once the link is up. */
-#define WLANBT_OFF_RSSI_CB     0x4838u
+ * Installed lazily (chipobserve_rssi_ensure) once the link is up. The
+ * callback's offset comes from the firmware's layout (wlanbt.c). */
 #define RSSI_RSP_LEN           0x1e
 
 static SceUID          g_rssi_hook = -1;
@@ -66,13 +66,14 @@ int chipobserve_rssi_ensure(void)
 {
 	if (g_rssi_hook >= 0)
 		return WQ_OK;
+	const WlanbtLayout *l = wlanbt_layout();
 	SceUID modid;
 	uintptr_t text;
-	if (wlanbt_text(WLANBT_OFF_RSSI_CB + 6, &modid, &text) != WQ_OK)
+	if (!l || wlanbt_text(l->rssi_cb + 6, &modid, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
-	/* Original prologue: ldr r3,[r0,#0x10]; cmp r3,#0x1e; bne (3.60-3.68). */
+	/* Original prologue: ldr r3,[r0,#0x10]; cmp r3,#0x1e; bne (3.60-3.74). */
 	static const uint8_t orig[6] = { 0x03, 0x69, 0x1E, 0x2B, 0x1D, 0xD1 };
-	const volatile uint8_t *t = (const volatile uint8_t *)text + WLANBT_OFF_RSSI_CB;
+	const volatile uint8_t *t = (const volatile uint8_t *)text + l->rssi_cb;
 	for (int i = 0; i < 6; i++) {
 		if (t[i] != orig[i]) {
 			WQ_KLOGW("chipobserve: RSSI_INFO callback bytes mismatch - refusing");
@@ -80,14 +81,14 @@ int chipobserve_rssi_ensure(void)
 		}
 	}
 	g_rssi_hook = taiHookFunctionOffsetForKernel(KERNEL_PID, &g_rssi_ref, modid, 0,
-	                                             WLANBT_OFF_RSSI_CB, 1, hook_rssi_cb);
+	                                             l->rssi_cb, 1, hook_rssi_cb);
 	if (g_rssi_hook < 0) {
 		WQ_KLOGW("chipobserve: RSSI_INFO callback hook failed (0x%08x)",
 		         (unsigned)g_rssi_hook);
 		g_rssi_hook = -1;
 		return WQ_ERR_RESOLVE;
 	}
-	WQ_KLOGI("chipobserve: hooked RSSI_INFO callback FUN_81004838 (SNR/NF)");
+	WQ_KLOGI("chipobserve: hooked RSSI_INFO callback +0x%x (SNR/NF)", (unsigned)l->rssi_cb);
 	return WQ_OK;
 }
 

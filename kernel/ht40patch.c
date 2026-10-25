@@ -13,6 +13,8 @@
  *     -> 0x62: 20/40 + SGI-20 + SGI-40 (Linux mwifiex's default
  *        MWIFIEX_FW_DEF_HTTXCFG for this chip family).
  *
+ * (Offsets are for 3.60-3.70; 3.71 moved them, see wlanbt.c.)
+ *
  * Both only run during an association, so the patch takes effect at the next
  * (re)association and costs nothing at runtime: no hooks, nothing on the
  * 0x2f44 command path, which is unsafe to hook. Each original byte is
@@ -27,12 +29,11 @@
 #include "klog.h"
 #include "../include/wifiturbo.h"
 
-#define HTCAP_INSN_OFF   0x501Au   /* mov.w r12, #imm8 (4 bytes)        */
-#define HTCAP_IMM_OFF    0x501Cu   /* its imm8 byte                     */
+/* HT Cap Info: mov.w r12, #imm8 (4 bytes) at l->htcap_insn, imm8 at +2. */
 #define HTCAP_20         0x2Cu
 #define HTCAP_40         0x6Eu
 
-#define TXCAP_INSN_OFF   0xB65Au   /* movs r1, #imm8 (2 bytes)          */
+/* 11N_CFG tx cap: movs r1, #imm8 (2 bytes) at l->txcap_insn. */
 #define TXCAP_20         0x20u
 #define TXCAP_40         0x62u
 
@@ -60,27 +61,31 @@ int ht40patch_set(int on)
 	if (ht40patch_active())
 		return WQ_OK;
 
+	const WlanbtLayout *l = wlanbt_layout();
 	SceUID modid;
 	uintptr_t text;
-	if (wlanbt_text(TXCAP_INSN_OFF + 2, &modid, &text) != WQ_OK)
+	if (!l || wlanbt_text(l->txcap_insn + 2, &modid, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
 	const volatile uint8_t *t = (const volatile uint8_t *)text;
+	const uint32_t htcap_off = l->htcap_insn;
+	const uint32_t htcap_imm = l->htcap_insn + 2;
+	const uint32_t txcap_off = l->txcap_insn;
 
-	/* Firmware check: the exact original instructions (3.60-3.68). */
-	if (t[HTCAP_INSN_OFF] != 0x4F || t[HTCAP_INSN_OFF + 1] != 0xF0 ||
-	    t[HTCAP_IMM_OFF] != HTCAP_20 || t[HTCAP_IMM_OFF + 1] != 0x0C ||
-	    t[TXCAP_INSN_OFF] != TXCAP_20 || t[TXCAP_INSN_OFF + 1] != 0x21) {
+	/* Firmware check: the exact original instructions (3.60-3.74). */
+	if (t[htcap_off] != 0x4F || t[htcap_off + 1] != 0xF0 ||
+	    t[htcap_imm] != HTCAP_20 || t[htcap_imm + 1] != 0x0C ||
+	    t[txcap_off] != TXCAP_20 || t[txcap_off + 1] != 0x21) {
 		WQ_KLOGW("ht40patch: original bytes mismatch (%02x %02x %02x %02x / %02x %02x) "
 		         "- unexpected SceWlanBt, refusing",
-		         t[HTCAP_INSN_OFF], t[HTCAP_INSN_OFF + 1], t[HTCAP_IMM_OFF],
-		         t[HTCAP_IMM_OFF + 1], t[TXCAP_INSN_OFF], t[TXCAP_INSN_OFF + 1]);
+		         t[htcap_off], t[htcap_off + 1], t[htcap_imm],
+		         t[htcap_imm + 1], t[txcap_off], t[txcap_off + 1]);
 		return WQ_ERR_RESOLVE;
 	}
 
 	static const uint8_t htcap40 = HTCAP_40;
 	static const uint8_t txcap40 = TXCAP_40;
-	g_inj_htcap = taiInjectDataForKernel(KERNEL_PID, modid, 0, HTCAP_IMM_OFF, &htcap40, 1);
-	g_inj_txcap = taiInjectDataForKernel(KERNEL_PID, modid, 0, TXCAP_INSN_OFF, &txcap40, 1);
+	g_inj_htcap = taiInjectDataForKernel(KERNEL_PID, modid, 0, htcap_imm, &htcap40, 1);
+	g_inj_txcap = taiInjectDataForKernel(KERNEL_PID, modid, 0, txcap_off, &txcap40, 1);
 	if (g_inj_htcap < 0 || g_inj_txcap < 0) {
 		WQ_KLOGW("ht40patch: inject failed (htcap=0x%08x txcap=0x%08x)",
 		         (unsigned)g_inj_htcap, (unsigned)g_inj_txcap);

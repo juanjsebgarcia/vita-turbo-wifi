@@ -44,7 +44,8 @@
 #include "klog.h"
 #include "../include/wifiturbo.h"
 
-#define PSB_SWAP_OFF   0x6082u   /* 8 bytes: strb.w lr,[r4,#0xa] ; mov.w lr,#3 */
+/* 8 bytes at l->dtim_swap: strb.w lr,[r4,#0xa] ; mov.w lr,#3 (offsets in this
+ * comment are 3.60's; 3.71 moved the block unchanged, see wlanbt.c). */
 #define PSB_SWAP_LEN   8u
 
 static const uint8_t k_orig[PSB_SWAP_LEN]    = { 0x84, 0xF8, 0x0A, 0xE0, 0x4F, 0xF0, 0x03, 0x0E };
@@ -70,13 +71,14 @@ int psprofile_dtim_set(int on)
 	if (psprofile_dtim_active())
 		return WQ_OK;
 
+	const WlanbtLayout *l = wlanbt_layout();
 	SceUID modid;
 	uintptr_t text;
-	if (wlanbt_text(PSB_SWAP_OFF + PSB_SWAP_LEN, &modid, &text) != WQ_OK)
+	if (!l || wlanbt_text(l->dtim_swap + PSB_SWAP_LEN, &modid, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
-	const volatile uint8_t *t = (const volatile uint8_t *)text + PSB_SWAP_OFF;
+	const volatile uint8_t *t = (const volatile uint8_t *)text + l->dtim_swap;
 
-	/* Firmware check: the exact original instruction pair (3.60-3.68). */
+	/* Firmware check: the exact original instruction pair (3.60-3.74). */
 	for (unsigned i = 0; i < PSB_SWAP_LEN; i++) {
 		if (t[i] != k_orig[i]) {
 			WQ_KLOGW("psprofile: original bytes mismatch at +%u "
@@ -87,7 +89,7 @@ int psprofile_dtim_set(int on)
 		}
 	}
 
-	g_inj_dtim = taiInjectDataForKernel(KERNEL_PID, modid, 0, PSB_SWAP_OFF,
+	g_inj_dtim = taiInjectDataForKernel(KERNEL_PID, modid, 0, l->dtim_swap,
 	                                    k_patched, PSB_SWAP_LEN);
 	if (g_inj_dtim < 0) {
 		WQ_KLOGW("psprofile: inject failed (0x%08x)", (unsigned)g_inj_dtim);
@@ -111,10 +113,8 @@ int psprofile_dtim_set(int on)
  * The flag's runtime address comes from the loader-relocated movw/movt pair
  * at 0x8100966c (lr = &0x8100ff80, the block the setter's gate path stores
  * into); the flag is +0x10. Both instructions and the prologue are verified
- * first, and the result must land inside a SceWlanBt data segment. */
-#define CFG_FN_OFF        0x9628u
-#define CFG_MOVW_OFF      0x966Cu
-#define CFG_MOVT_OFF      0x9672u
+ * first, and the result must land inside a SceWlanBt data segment. The
+ * setter and movw/movt offsets come from the firmware's layout (wlanbt.c). */
 #define CFG_FLAG_DELTA    0x10u
 #define CFG_PS_OFF        6
 #define CFG_PS_ON         7
@@ -132,17 +132,18 @@ static int resolve_ps_flag(void)
 {
 	if (g_cfg_fn && g_ps_flag)
 		return WQ_OK;
+	const WlanbtLayout *l = wlanbt_layout();
 	uintptr_t text;
-	if (wlanbt_text(CFG_MOVT_OFF + 4, NULL, &text) != WQ_OK)
+	if (!l || wlanbt_text(l->cfg_movt + 4, NULL, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
 	const volatile uint8_t  *t8 = (const volatile uint8_t *)text;
-	if (t8[CFG_FN_OFF] != 0x2D || t8[CFG_FN_OFF + 1] != 0xE9 ||
-	    t8[CFG_FN_OFF + 2] != 0xF0 || t8[CFG_FN_OFF + 3] != 0x43) {
-		WQ_KLOGW("psprofile: FUN_81009628 prologue mismatch - refusing");
+	if (t8[l->cfg_fn] != 0x2D || t8[l->cfg_fn + 1] != 0xE9 ||
+	    t8[l->cfg_fn + 2] != 0xF0 || t8[l->cfg_fn + 3] != 0x43) {
+		WQ_KLOGW("psprofile: configuration setter prologue mismatch - refusing");
 		return WQ_ERR_RESOLVE;
 	}
-	const volatile uint16_t *w = (const volatile uint16_t *)(text + CFG_MOVW_OFF);
-	const volatile uint16_t *m = (const volatile uint16_t *)(text + CFG_MOVT_OFF);
+	const volatile uint16_t *w = (const volatile uint16_t *)(text + l->cfg_movw);
+	const volatile uint16_t *m = (const volatile uint16_t *)(text + l->cfg_movt);
 	if ((w[0] & 0xFBF0) != 0xF240 || ((w[1] >> 8) & 0xF) != 14 ||
 	    (m[0] & 0xFBF0) != 0xF2C0 || ((m[1] >> 8) & 0xF) != 14) {
 		WQ_KLOGW("psprofile: flag movw/movt mismatch - refusing");
@@ -154,7 +155,7 @@ static int resolve_ps_flag(void)
 		return WQ_ERR_RESOLVE;
 	}
 	g_ps_flag = (volatile int *)flag;
-	g_cfg_fn = (int (*)(unsigned, int))(text + CFG_FN_OFF + 1);   /* Thumb */
+	g_cfg_fn = (int (*)(unsigned, int))(text + l->cfg_fn + 1);   /* Thumb */
 	WQ_KLOGI("psprofile: PS flag at 0x%08x (now %d)", (unsigned)flag, *g_ps_flag);
 	return WQ_OK;
 }
