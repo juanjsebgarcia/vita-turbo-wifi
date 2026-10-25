@@ -1,7 +1,7 @@
 /*
  * wifiturbo.h - shared constants and types for Wi-Fi Turbo (PS Vita Wi-Fi plugin).
  *
- * Firmware 3.60-3.68 CEX, taiHEN/HENkaku. Homebrew interoperability project for the
+ * Firmware 3.60-3.74 CEX, taiHEN/HENkaku. Homebrew interoperability project for the
  * device owner's own console. This header collects the magic numbers (NIDs,
  * struct offsets, reason codes) the C code relies on, with a short note on
  * what each one is.
@@ -22,7 +22,7 @@
 
 /* Release version. The .yml module versions carry major.minor (0.1); bump all
  * three together. Logged in both modules' init banner so a log pins the build. */
-#define WQ_VERSION_STR    "0.2.0-alpha"
+#define WQ_VERSION_STR    "0.2.1-alpha"
 
 #define WQ_SSID_MAX               32          /* each SSID 1..32 chars          */
 
@@ -47,7 +47,7 @@
  * boundary, so both modules must be built from this same definition. */
 typedef struct WqLinkInternals {
 	uint8_t  valid;            /* 1 once a reply with real dBm readings is seen */
-	/* The 88W8787 is a 1x1 radio, so "beacon" vs "data" here is the beacon-path
+	/* The Wi-Fi chip is a 1x1 radio, so "beacon" vs "data" here is the beacon-path
 	 * vs data-path RSSI the firmware tracks separately, not two spatial chains. */
 	int16_t  noise_floor_dbm;  /* data NF avg (beacon NF if no data)           */
 	int16_t  beacon_rssi_dbm;  /* beacon-path RSSI avg                         */
