@@ -50,6 +50,12 @@ static const char WT_BTWARN[] =
 static const char WT_ROWS[] =
  "<toggle_switch id=\"wt_keepwifi\" title=\"wt_t_keep\" icon=\"tex_spanner\" hint=\"wt_h_keepwifi\" key=\"/CONFIG/WIFITURBO/keepwifi\"/>"
  "<toggle_switch id=\"wt_hud\" title=\"wt_t_hud\" icon=\"tex_spanner\" hint=\"wt_h_hud\" key=\"/CONFIG/WIFITURBO/hud\"/>"
+ "<list id=\"wt_hudpos\" title=\"wt_t_hudpos\" icon=\"tex_spanner\" hint=\"wt_h_hudpos\" key=\"/CONFIG/WIFITURBO/hudpos\">"
+  "<list_item id=\"wt_pos0\" title=\"wt_i_pos0\" value=\"0\"/>"
+  "<list_item id=\"wt_pos1\" title=\"wt_i_pos1\" value=\"1\"/>"
+  "<list_item id=\"wt_pos2\" title=\"wt_i_pos2\" value=\"2\"/>"
+  "<list_item id=\"wt_pos3\" title=\"wt_i_pos3\" value=\"3\"/>"
+ "</list>"
  "<toggle_switch id=\"wt_autorecon\" title=\"wt_t_autorecon\" icon=\"tex_spanner\" hint=\"wt_h_autorecon\" key=\"/CONFIG/WIFITURBO/autoreconnect\"/>"
  "<toggle_switch id=\"wt_roam\" title=\"wt_t_roam\" icon=\"tex_spanner\" hint=\"wt_h_roam\" key=\"/CONFIG/WIFITURBO/roam\"/>"
  "<toggle_switch id=\"wt_ht40\" title=\"wt_t_ht40\" icon=\"tex_spanner\" hint=\"wt_h_ht40\" key=\"/CONFIG/WIFITURBO/ht40\"/>"
@@ -86,6 +92,7 @@ static const wt_u16 *WT_TEXT(const char *id)
 	M("wt_t_title",     WT_I18N_TITLE)
 	M("wt_t_keep",      WT_I18N_ROW_KEEP)
 	M("wt_t_hud",       WT_I18N_ROW_HUD)
+	M("wt_t_hudpos",    WT_I18N_ROW_HUDPOS)
 	M("wt_t_autorecon", WT_I18N_ROW_RECONNECT)
 	M("wt_t_roam",      WT_I18N_ROW_ROAM)
 	M("wt_t_ht40",      WT_I18N_ROW_HT40)
@@ -93,8 +100,13 @@ static const wt_u16 *WT_TEXT(const char *id)
 	M("wt_i_maxperf",   WT_I18N_ITEM_MAXPERF)
 	M("wt_i_balanced",  WT_I18N_ITEM_BALANCED)
 	M("wt_i_battery",   WT_I18N_ITEM_BATTERY)
+	M("wt_i_pos0",      WT_I18N_ITEM_POS_TL)
+	M("wt_i_pos1",      WT_I18N_ITEM_POS_TR)
+	M("wt_i_pos2",      WT_I18N_ITEM_POS_BL)
+	M("wt_i_pos3",      WT_I18N_ITEM_POS_BR)
 	M("wt_h_keepwifi",  WT_I18N_HINT_KEEP)
 	M("wt_h_hud",       WT_I18N_HINT_HUD)
+	M("wt_h_hudpos",    WT_I18N_HINT_HUDPOS)
 	M("wt_h_autorecon", WT_I18N_HINT_RECONNECT)
 	M("wt_h_roam",      WT_I18N_HINT_ROAM)
 	M("wt_h_ht40",      WT_I18N_HINT_HT40)
@@ -185,6 +197,7 @@ static int       g_ui_init = 0;
 static int *wt_field(const char *name)
 {
 	if (s_eqn(name,"keepwifi",9))       return &g_ui.keepwifi;
+	if (s_eqn(name,"hudpos",7))         return &g_ui.hudpos;
 	if (s_eqn(name,"hud",4))            return &g_ui.hud;
 	if (s_eqn(name,"autoreconnect",14)) return &g_ui.autoreconnect;
 	if (s_eqn(name,"roam",5))           return &g_ui.roam;
@@ -219,6 +232,10 @@ static int set_hook(const char *cat, const char *name, int v)
 		} else if (s_eqn(name,"rxring",7)) {
 			const char *p = (v==2)?"rxpreset maximum":(v==1)?"rxpreset enhanced":"rxpreset stock";
 			while (p[n]) { line[n]=p[n]; n++; }
+		} else if (s_eqn(name,"hudpos",7)) {
+			const char *pre = "hud pos ";              /* -> "hud pos 0..3" */
+			while (pre[n]) { line[n]=pre[n]; n++; }
+			line[n++] = (char)('0' + (v & 3));
 		} else {
 			int ln = s_len(name); s_cpy(line, name, ln); n = ln;
 			line[n++]=' '; const char *o = v?"on":"off";

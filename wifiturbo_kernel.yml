@@ -29,3 +29,4 @@ wifiturbo_kernel:
         - wqPsGetFlag
         - wqRxRing
         - wqForceReboot
+        - wqHudSetPos

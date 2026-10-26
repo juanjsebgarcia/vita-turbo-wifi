@@ -30,12 +30,16 @@ void wq_persist_load(WqUiState *out)
 	memset(&b, 0, sizeof(b));
 	int n = sceIoRead(fd, &b, sizeof(b));
 	sceIoClose(fd);
-	/* Accept the previous layout too (no rxring field, one int shorter). */
-	if ((n == (int)sizeof(b) || n == (int)sizeof(b) - (int)sizeof(int)) &&
+	/* Accept older layouts too: each added trailing field (rxring, then hudpos)
+	 * makes settings.bin one int longer, so a shorter file is just from an
+	 * earlier build and its missing tail stays 0 (from the memset above). */
+	if ((n == (int)sizeof(b) ||
+	     n == (int)sizeof(b) - (int)sizeof(int) ||
+	     n == (int)sizeof(b) - 2 * (int)sizeof(int)) &&
 	    b.magic == WQ_PERSIST_MAGIC)
 		*out = b.s;
-	WQ_LOGI("persist: loaded keepwifi=%d hud=%d autorecon=%d roam=%d ht40=%d "
-	        "profile=%d rxring=%d", out->keepwifi, out->hud,
+	WQ_LOGI("persist: loaded keepwifi=%d hud=%d hudpos=%d autorecon=%d roam=%d "
+	        "ht40=%d profile=%d rxring=%d", out->keepwifi, out->hud, out->hudpos,
 	        out->autoreconnect, out->roam, out->ht40, out->profile, out->rxring);
 }
 

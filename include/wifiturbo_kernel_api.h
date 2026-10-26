@@ -100,6 +100,11 @@ int wqHudSetEnabled(int enabled);
  * user module's HUD sampling thread. */
 int wqHudSetState(const WqHudState *state);
 
+/* Set the screen corner the overlay draws in (WQ_HUD_POS_*). Config, not
+ * per-frame: called when the "hudpos" setting changes and re-applied at boot.
+ * Out-of-range values are ignored. */
+int wqHudSetPos(int pos);
+
 /* ---- read-only self-test probes ----------------------------------------- */
 
 /* Round-trip cookie returned by wqSelfTestPing(): proves the user->kernel
@@ -145,8 +150,10 @@ typedef struct {
 	int devmode;    /* Developer mode: :1339 remote-control listener on.
 	                 * Default 0 = off. */
 	int rxring;     /* EXPERIMENTAL Wi-Fi receive buffer: 0 default / 1 enhanced
-	                 * (127 slots) / 2 maximum (149). Last field: settings.bin
-	                 * from older builds is one int shorter and loads as 0. */
+	                 * (127 slots) / 2 maximum (149). */
+	int hudpos;     /* WQ_HUD_POS_* - which screen corner the overlay draws in.
+	                 * Last field: a settings.bin from an older build is one or
+	                 * two ints shorter and the missing tail loads as 0. */
 } WqUiState;
 
 #define WQ_UI_CMD_MAX 64              /* command buffer size for wqUiSubmit/Drain */

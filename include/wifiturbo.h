@@ -76,6 +76,17 @@ typedef struct WqHudState {
 	int32_t  lang;             /* system language (wq_i18n_lang) for HUD i18n  */
 } WqHudState;
 
+/* HUD overlay screen corner. Config (not per-sample telemetry): set with
+ * wqHudSetPos() when the "hudpos" setting changes and re-applied at boot, like
+ * the enable/draw-arm gates. The values match the Settings list item order (and
+ * the Turbo Storage plugin's own corner constants). Default is top-left, where
+ * the HUD has always drawn, so an existing install is unchanged. */
+#define WQ_HUD_POS_TOP_LEFT     0
+#define WQ_HUD_POS_TOP_RIGHT    1
+#define WQ_HUD_POS_BOTTOM_LEFT  2
+#define WQ_HUD_POS_BOTTOM_RIGHT 3
+#define WQ_HUD_POS_DEFAULT      WQ_HUD_POS_TOP_LEFT
+
 /* Profiles exposed by the "never sleep"/latency toggle. */
 #define WQ_PROFILE_MAX_PERF    0   /* PS off, auto-deep-sleep off: never sleep */
 #define WQ_PROFILE_BALANCED    1   /* default-ish PS                           */
