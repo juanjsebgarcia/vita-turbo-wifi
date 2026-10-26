@@ -9,6 +9,7 @@
  */
 #include <psp2/kernel/processmgr.h>   /* sceKernelPowerTick                      */
 #include <psp2/kernel/threadmgr.h>
+#include <psp2/power.h>               /* scePowerIsPowerOnline / IsBatteryCharging / GetBatteryLifePercent */
 
 #include <psp2/registrymgr.h>   /* sceRegMgrGetKeyInt - the user's Wi-Fi intent  */
 
@@ -472,11 +473,36 @@ static volatile int g_enabled = 1;   /* default ON - the user wants Wi-Fi kept u
 static volatile int g_autorecon = 1;  /* "Auto-reconnect on drop" - default ON        */
 static volatile int g_run     = 0;
 
+/* Should we hold auto-suspend off this tick?
+ *
+ * Only while the Vita is running on its BATTERY. On external power with the
+ * battery not yet full we must NOT hold suspend off, because the console only
+ * tops up the final ~10% in standby; a permanent hold therefore caps charging
+ * at ~89-90% (very visible on the PCH-1000 OLED). Releasing the hold lets an
+ * IDLE, charging Vita reach standby and charge to 100% - active use (plugged in
+ * and playing) keeps itself awake through the system's own activity timer, so
+ * that case is unaffected and Wi-Fi stays up. Any read failure is treated as
+ * "on battery" so Wi-Fi is kept up (fail toward the feature, never toward a
+ * silent charge cap). See GitHub issue #6. */
+static int keepwifi_hold_suspend(void)
+{
+	if (!g_enabled)
+		return 0;
+	if (scePowerIsPowerOnline() != 1)   /* on battery (or unknown) -> keep Wi-Fi up */
+		return 1;
+	/* On external power: hold only once the battery is full, so charging can
+	 * complete. IsBatteryCharging can read 0 at the stalled cap, so also gate on
+	 * the percentage. */
+	if (scePowerGetBatteryLifePercent() >= 100 && scePowerIsBatteryCharging() != 1)
+		return 1;
+	return 0;                           /* charging/topping up -> allow standby   */
+}
+
 static int keepwifi_thread(SceSize args, void *argp)
 {
 	(void)args; (void)argp;
 	while (g_run) {
-		if (g_enabled)                    /* standby only: screen may still dim/turn off */
+		if (keepwifi_hold_suspend())      /* standby only: screen may still dim/turn off */
 			sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
 		if (g_icmtest) {
 			icm_test_tick();     /* owns reconnects while the test runs         */
@@ -525,7 +551,7 @@ void keepwifi_stop(void)
 void keepwifi_set_enabled(int on)
 {
 	g_enabled = on ? 1 : 0;
-	if (g_enabled)
+	if (keepwifi_hold_suspend())   /* only on battery - don't cap charging on AC */
 		sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
 	WQ_LOGI("keepwifi: %s by request", g_enabled ? "ON" : "off");
 }

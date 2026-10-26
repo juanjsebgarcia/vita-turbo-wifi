@@ -130,6 +130,7 @@ target_link_libraries(wifiturbo
   SceKernelThreadMgr_stub_weak  # sceKernelDelayThread/Delete* (SceThreadmgr lib)
   SceIofilemgr_stub_weak        # sceIoClose/sceIoWrite (the log file)
   SceProcessmgr_stub_weak       # sceKernelPowerLock/Unlock/Tick (keepwifi.c)
+  ScePower_stub_weak            # scePowerIsPowerOnline/IsBatteryCharging/GetBatteryLifePercent (keepwifi charger-aware suspend hold)
   SceRegistryMgr_stub_weak      # sceRegMgrGetKeyInt (keepwifi.c wifi_flag)
   SceWlanBt_stub_weak           # sceWlanGet/SetConfiguration (keepwifi reconnect)
   SceBt_stub_weak               # sceBtGet/SetConfiguration (rxcycle: chip power-down)
