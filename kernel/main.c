@@ -124,6 +124,11 @@ int wqHudSetState(const WqHudState *state)
 	return hud_set_state(state);
 }
 
+int wqHudSetPos(int pos)
+{
+	return hud_set_pos(pos);
+}
+
 /* ---- read-only self-test probes ----------------------------------------- */
 
 /* EXPERIMENTAL: the Wi-Fi chip's receive buffer (rxring.c), WQ_RXRING_OP_*.

@@ -189,7 +189,7 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 
 	if (!line || !line[0] || str_eq(line, "help")) {
 		put(p, end,
-		    "cmds: status|hud on/off|profile maxperf/balanced/maxbatt|"
+		    "cmds: status|hud on/off|hud pos tl/tr/bl/br|profile maxperf/balanced/maxbatt|"
 		    "ht40 on/off|confirm|revert|autoreconnect on/off|keepwifi on/off|"
 		    "roam on/off|roam now|roam precheck on/off|roam status|"
 		    "rejoin|icm|icmtest|netdown|"
@@ -228,6 +228,22 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 	}
 
 	if ((a = tok_after(line, "hud"))) {
+		const char *pa;
+		if ((pa = tok_after(a, "pos"))) {
+			/* 'hud pos tl|tr|bl|br' (or 0..3): which screen corner it draws in.
+			 * Config only - does not arm or disarm the overlay. */
+			int pos = -1;
+			if      (str_eq(pa, "tl") || str_eq(pa, "0")) pos = WQ_HUD_POS_TOP_LEFT;
+			else if (str_eq(pa, "tr") || str_eq(pa, "1")) pos = WQ_HUD_POS_TOP_RIGHT;
+			else if (str_eq(pa, "bl") || str_eq(pa, "2")) pos = WQ_HUD_POS_BOTTOM_LEFT;
+			else if (str_eq(pa, "br") || str_eq(pa, "3")) pos = WQ_HUD_POS_BOTTOM_RIGHT;
+			if (pos < 0) { put(p, end, "err: hud pos tl|tr|bl|br"); return WQ_ERR_ARG; }
+			int r = wqHudSetPos(pos);
+			if (r < 0) { put(p, end, "err: hud pos rejected"); return r; }
+			p = put(p, end, "hud pos ");
+			p = put_i(p, end, pos);
+			return WQ_OK;
+		}
 		/* 'hud on|off' - the overlay: sampler thread + framebuffer draw. */
 		int on = str_eq(a, "on");
 		wq_hud_runtime_set(on);

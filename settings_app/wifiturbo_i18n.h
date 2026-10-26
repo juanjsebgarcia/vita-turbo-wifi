@@ -96,6 +96,14 @@ enum wq_i18n_id {
 	WT_I18N_ITEM_MAXIMUM,       /* "Maximum"                  */
 	WT_I18N_HINT_RXRING,
 
+	/* HUD position row + its four screen-corner list items */
+	WT_I18N_ROW_HUDPOS,         /* "HUD position"             */
+	WT_I18N_HINT_HUDPOS,
+	WT_I18N_ITEM_POS_TL,        /* corner items, in WQ_HUD_POS_* order */
+	WT_I18N_ITEM_POS_TR,
+	WT_I18N_ITEM_POS_BL,
+	WT_I18N_ITEM_POS_BR,
+
 	WT_I18N_COUNT
 };
 

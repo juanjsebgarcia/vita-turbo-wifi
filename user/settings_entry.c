@@ -38,6 +38,17 @@ static int settings_track(const char *line)
 {
 	WqUiState b = g_settings;
 	if      (str_pre(line, "keepwifi "))      g_settings.keepwifi      = str_pre(line, "keepwifi on");
+	/* 'hud pos ...' MUST be caught before the 'hud ' overlay toggle, or it would
+	 * read as 'hud off'. Accepts 0..3 or tl/tr/bl/br (the :1339 surface). */
+	else if (str_pre(line, "hud pos ")) {
+		const char *a = line + 8;             /* past "hud pos " */
+		int pos = -1;
+		if      (a[0] == '0' || (a[0] == 't' && a[1] == 'l')) pos = 0;
+		else if (a[0] == '1' || (a[0] == 't' && a[1] == 'r')) pos = 1;
+		else if (a[0] == '2' || (a[0] == 'b' && a[1] == 'l')) pos = 2;
+		else if (a[0] == '3' || (a[0] == 'b' && a[1] == 'r')) pos = 3;
+		if (pos >= 0) g_settings.hudpos = pos;
+	}
 	else if (str_pre(line, "hud "))           g_settings.hud           = str_pre(line, "hud on");
 	else if (str_pre(line, "autoreconnect ")) g_settings.autoreconnect = str_pre(line, "autoreconnect on");
 	else if (str_pre(line, "ht40 "))          g_settings.ht40          = str_pre(line, "ht40 on");
@@ -79,6 +90,7 @@ void wq_settings_boot(void)
 	wq_persist_load(&g_settings);
 	g_settings_ready = 1;
 	wq_dispatch_exec(g_settings.keepwifi ? "keepwifi on" : "keepwifi off", rep, sizeof(rep));
+	wqHudSetPos(g_settings.hudpos);   /* set the corner before the overlay arms  */
 	wq_dispatch_exec(g_settings.hud ? "hud on" : "hud off", rep, sizeof(rep));
 	wq_dispatch_exec(g_settings.autoreconnect ? "autoreconnect on" : "autoreconnect off", rep, sizeof(rep));
 	wq_dispatch_exec(g_settings.roam ? "roam on" : "roam off", rep, sizeof(rep));

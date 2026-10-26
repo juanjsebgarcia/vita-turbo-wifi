@@ -37,6 +37,7 @@ static SceUID   g_hook = -1;
 static tai_hook_ref_t g_ref;
 static int      g_enabled = 0;
 static int      g_draw_armed = 0;   /* framebuffer PIXEL-WRITE gate - OFF default */
+static int      g_pos = WQ_HUD_POS_DEFAULT;   /* screen corner; WQ_HUD_POS_*   */
 
 /* Double-buffered HUD state so the hook never reads a torn struct. */
 static WqHudState g_state[2];
@@ -122,6 +123,9 @@ static const char *state_name(int lang, int st)
 	}
 }
 
+#define HUD_MAX_LINES  5
+#define HUD_LINE_CHARS  96
+
 static void render(uint32_t *fb, int pitch, int w, int h)
 {
 	int idx = g_front;
@@ -129,22 +133,26 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 	if (!s->valid)
 		return;
 
-	char line[96];
-	char *p, *end = line + sizeof(line);
-	int y = HUD_MARGIN_Y;
+	/* Build every visible line first, so the whole block can be anchored to the
+	 * chosen corner (we need its height and widest line for right/bottom
+	 * alignment). Each entry is one physical line; the text itself is still
+	 * left-aligned within the block, exactly as the fixed top-left HUD was. */
+	char  lines[HUD_MAX_LINES][HUD_LINE_CHARS];
+	int   n = 0, maxlen = 0;
+	char *p, *end;
 
 	/* line 1: channel width offered + state + SSID */
-	p = line;
+	p = lines[n]; end = p + HUD_LINE_CHARS;
 	p = put_str(p, end, ht40patch_active() ? "40MHz WiFi " : "20MHz WiFi ");
 	p = put_str(p, end, state_name(s->lang, s->netctl_state));
 	p = put_str(p, end, " ");
 	p = put_str(p, end, s->ssid[0] ? s->ssid : "-");
 	*p = 0;
-	draw_text(fb, pitch, w, h, HUD_MARGIN_X, y, line);
-	y += (8 * HUD_SCALE) + 4;
+	if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
+	n++;
 
 	/* line 2: RSSI dBm/%, SNR, channel */
-	p = line;
+	p = lines[n]; end = p + HUD_LINE_CHARS;
 	p = put_str(p, end, "RSSI ");
 	p = put_int(p, end, s->rssi_dbm);
 	p = put_str(p, end, "dBm ");
@@ -157,22 +165,22 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 	p = put_str(p, end, "  CH ");
 	p = put_int(p, end, (int)s->channel);
 	*p = 0;
-	draw_text(fb, pitch, w, h, HUD_MARGIN_X, y, line);
-	y += (8 * HUD_SCALE) + 4;
+	if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
+	n++;
 
 	/* line 3: BSSID */
-	p = line;
+	p = lines[n]; end = p + HUD_LINE_CHARS;
 	p = put_str(p, end, "BSSID ");
 	for (int i = 0; i < 6; i++) {
 		p = put_hex2(p, end, s->bssid[i]);
 		if (i < 5 && p < end - 1) *p++ = ':';
 	}
 	*p = 0;
-	draw_text(fb, pitch, w, h, HUD_MARGIN_X, y, line);
-	y += (8 * HUD_SCALE) + 4;
+	if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
+	n++;
 
-	/* line 5: profile + last failure reason (human-ish) */
-	p = line;
+	/* line 4: profile + last failure reason (human-ish) */
+	p = lines[n]; end = p + HUD_LINE_CHARS;
 	p = put_str(p, end, hud_tr(s->lang, HTR_PROFILE)); p = put_str(p, end, " ");
 	p = put_str(p, end, s->profile[0] ? s->profile : "-");
 	if (s->last_result) {
@@ -189,12 +197,32 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 		}
 	}
 	*p = 0;
-	draw_text(fb, pitch, w, h, HUD_MARGIN_X, y, line);
-	y += (8 * HUD_SCALE) + 4;
+	if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
+	n++;
 
-	/* line 6: transient notice (safety harness etc.) */
-	if (s->notice[0])
-		draw_text(fb, pitch, w, h, HUD_MARGIN_X, y, s->notice);
+	/* line 5: transient notice (safety harness etc.) - only when present */
+	if (s->notice[0]) {
+		p = lines[n]; end = p + HUD_LINE_CHARS;
+		p = put_str(p, end, s->notice);
+		*p = 0;
+		if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
+		n++;
+	}
+
+	/* Anchor the block. Glyphs are 8 px wide at 1x, so a column is 8*HUD_SCALE;
+	 * a line is one glyph tall plus the 4 px inter-line gap used below. */
+	int line_h = (8 * HUD_SCALE) + 4;
+	int box_w  = maxlen * 8 * HUD_SCALE;
+	int box_h  = n * line_h;
+	int right  = (g_pos == WQ_HUD_POS_TOP_RIGHT || g_pos == WQ_HUD_POS_BOTTOM_RIGHT);
+	int bottom = (g_pos == WQ_HUD_POS_BOTTOM_LEFT || g_pos == WQ_HUD_POS_BOTTOM_RIGHT);
+	int x = right  ? w - HUD_MARGIN_X - box_w : HUD_MARGIN_X;
+	int y = bottom ? h - HUD_MARGIN_Y - box_h : HUD_MARGIN_Y;
+	if (x < 0) x = 0;
+	if (y < 0) y = 0;
+
+	for (int i = 0; i < n; i++, y += line_h)
+		draw_text(fb, pitch, w, h, x, y, lines[i]);
 }
 
 /* ---- the sceDisplaySetFrameBuf hook ------------------------------------ */
@@ -305,6 +333,18 @@ int hud_set_draw_armed(int on)
 {
 	g_draw_armed = on ? 1 : 0;
 	WQ_KLOGI("hud: framebuffer draw %s", g_draw_armed ? "ARMED" : "disarmed");
+	return WQ_OK;
+}
+
+/* Pick the screen corner the overlay draws in. Read by render() next frame; no
+ * lock needed - a single aligned int, and a torn read at worst draws one frame
+ * in the previous corner. Ignores out-of-range values (fail-safe). */
+int hud_set_pos(int pos)
+{
+	if (pos < WQ_HUD_POS_TOP_LEFT || pos > WQ_HUD_POS_BOTTOM_RIGHT)
+		return WQ_ERR_ARG;
+	g_pos = pos;
+	WQ_KLOGI("hud: position -> %d", pos);
 	return WQ_OK;
 }
 
