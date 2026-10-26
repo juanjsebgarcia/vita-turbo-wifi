@@ -645,9 +645,17 @@ static SceUID g_thread = -1;
 /* How long the worker sleeps before touching SceNet/SceNetCtl. module_start
  * defers ALL bring-up to this thread specifically so nothing network-related
  * runs during early SceShell boot; ~3s mirrors the proven vitacompanion net
- * delay and is comfortably past the point where SceShell has initialised
- * SceNet. Touching the network before that faults hard enough to wedge boot. */
+ * delay. Touching the network before SceShell has initialised it faults hard
+ * enough to wedge boot. */
 #define WQ_DEFERRED_BRINGUP_DELAY_US  (3 * 1000 * 1000)
+
+/* 3s is only a floor, not a guarantee: some boots (seen on 3.65 with a version
+ * spoof and a custom boot warning) reach it before SceShell has initialised
+ * SceNetCtl, and our sceNetCtlInit then wedged the boot every time. So after
+ * the floor, poll until SceShell's own init is visible (diag_netctl_ready),
+ * with no timeout - the plugin stays inert until then. */
+#define WQ_NETCTL_POLL_US             (250 * 1000)
+#define WQ_NETCTL_WAIT_LOG_EVERY      40          /* polls: a line every ~10s */
 
 /* Developer mode: the :1339 listener only runs while this is on (default off,
  * restored from Settings at boot). Commands from the Settings page reach
@@ -685,6 +693,22 @@ static int server_thread(SceSize args, void *argp)
 	sw.size = sizeof(sw);
 	if (sceKernelGetSystemSwVersion(&sw) >= 0)
 		WQ_LOGI("firmware: reports %s (0x%08x)", sw.versionString, (unsigned)sw.version);
+
+	/* Everything below touches SceNet/SceNetCtl: wait for SceShell to have
+	 * initialised it, so we never initialise it first. */
+	WQ_LOGI("bringup: waiting for SceShell to initialise SceNetCtl");
+	unsigned polls = 0;
+	while (g_run && !diag_netctl_ready()) {
+		sceKernelDelayThread(WQ_NETCTL_POLL_US);
+		if (++polls % WQ_NETCTL_WAIT_LOG_EVERY == 0)
+			WQ_LOGI("bringup: still waiting for SceNetCtl (+%u ms)",
+			        polls * (WQ_NETCTL_POLL_US / 1000));
+	}
+	if (!g_run)
+		return 0;
+	WQ_LOGI("bringup: SceNetCtl ready (+%u ms) - starting subsystems",
+	        polls * (WQ_NETCTL_POLL_US / 1000));
+
 	int rd = diag_init();        /* SceNetCtl + drop-reason callback           */
 	if (rd != WQ_OK)
 		WQ_LOGW("diag_init rc=%d (SceNetCtl not ready)", rd);

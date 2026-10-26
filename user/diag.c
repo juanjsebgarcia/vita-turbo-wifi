@@ -31,6 +31,16 @@ static int g_init_rc = 0;      /* last sceNetCtlInit return (for selftest)   */
  * initialised it, so the state reads still work. */
 #define WQ_NETCTL_ERR_ALREADY_INITED  0x80412102u
 
+/* 1 once SceShell has initialised SceNetCtl itself: a state read only succeeds
+ * then (before it, it fails with NOT_INITIALIZED, 0x80412101). The bring-up
+ * waits on this so diag_init's sceNetCtlInit is never the process's first -
+ * being first, during a slow boot, wedged it at the boot warning screen. */
+int diag_netctl_ready(void)
+{
+	int state = WQ_NETCTL_DISCONNECTED;
+	return sceNetCtlInetGetState(&state) == 0;
+}
+
 /* Event ids from the netctl callback. On an event we read the reason via
  * GetResult and keep it for the HUD's "last drop" line. */
 static void netctl_cb(int event_type, void *arg)
