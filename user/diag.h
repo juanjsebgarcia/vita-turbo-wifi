@@ -12,6 +12,10 @@
 int  diag_init(void);   /* sceNetCtlInit + register the drop-reason callback  */
 void diag_fini(void);
 
+/* 1 once SceShell has initialised SceNetCtl (a state read succeeds), else 0.
+ * Read-only: never initialises netctl. */
+int  diag_netctl_ready(void);
+
 /* Sample everything into *out (HUD-ready). Safe to call frequently. */
 int  diag_sample(WqHudState *out);
 
