@@ -14,6 +14,7 @@
  * page simply doesn't appear; nothing crashes.
  */
 #include <psp2/kernel/modulemgr.h>
+#include <psp2/kernel/processmgr.h>   /* sceKernelGetProcessTimeWide (state re-read) */
 #include <taihen.h>
 
 #include "../include/wifiturbo_kernel_api.h"   /* WqUiState, wqUi* syscalls     */
@@ -191,11 +192,16 @@ static int xml_hook(void *out, void *buf, int size, void *a4)
 }
 
 /* RegMgr GET/SET/INFO for our private namespace -> the resident core. */
-/* Local state cache for this Settings session, so a toggle is remembered
- * immediately on re-read (the resident mailbox has ~1s latency and doesn't yet
- * publish every field). Seeded from the resident state on first use. */
+/* Local state cache, so a toggle made here is remembered immediately on
+ * re-read (the resident core publishes ~1 s later). Re-read from the core when
+ * the page asks again after a while - e.g. on returning to the page after a
+ * change in the quick menu - except just after a change made here, which the
+ * published state may not show yet. */
+#define WT_RESEED_US      1500000ull   /* re-read if the copy is older than this */
+#define WT_SET_SETTLE_US  3000000ull   /* ...but not this soon after our own set  */
 static WqUiState g_ui;
 static int       g_ui_init = 0;
+static SceUInt64 g_seed_t, g_set_t;
 
 static int *wt_field(const char *name)
 {
@@ -211,7 +217,15 @@ static int *wt_field(const char *name)
 	if (s_eqn(name,"rxring",7))         return &g_ui.rxring;
 	return 0;
 }
-static void wt_seed(void) { if (!g_ui_init) { wqUiReadState(&g_ui); g_ui_init = 1; } }
+static void wt_seed(void)
+{
+	SceUInt64 now = sceKernelGetProcessTimeWide();
+	if (g_ui_init && (now - g_seed_t < WT_RESEED_US || now - g_set_t < WT_SET_SETTLE_US))
+		return;
+	if (wqUiReadState(&g_ui) >= 0)
+		g_ui_init = 1;
+	g_seed_t = now;
+}
 
 static int get_hook(const char *cat, const char *name, int *val)
 {
@@ -229,6 +243,7 @@ static int set_hook(const char *cat, const char *name, int v)
 		wt_seed();
 		int *f = wt_field(name);
 		if (f) *f = v;   /* remember immediately for this session's re-reads */
+		g_set_t = sceKernelGetProcessTimeWide();
 		char line[WQ_UI_CMD_MAX]; int n = 0;
 		if (s_eqn(name,"profile",8)) {
 			const char *p = (v==0)?"profile maxperf":(v==1)?"profile balanced":"profile maxbatt";
