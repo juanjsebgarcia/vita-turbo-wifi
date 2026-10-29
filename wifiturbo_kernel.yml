@@ -2,7 +2,7 @@ wifiturbo_kernel:
   attributes: 0
   version:
     major: 0
-    minor: 3
+    minor: 4
   main:
     start: module_start
     stop: module_stop
