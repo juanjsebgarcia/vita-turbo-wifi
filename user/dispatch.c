@@ -189,7 +189,7 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 
 	if (!line || !line[0] || str_eq(line, "help")) {
 		put(p, end,
-		    "cmds: status|hud on/off|hud pos tl/tr/bl/br|profile maxperf/balanced/maxbatt|"
+		    "cmds: status|hud on/off|hud pos tl/tr/bl/br|hudgame on/off|profile maxperf/balanced/maxbatt|"
 		    "ht40 on/off|confirm|revert|autoreconnect on/off|keepwifi on/off|"
 		    "roam on/off|roam now|roam precheck on/off|roam status|"
 		    "rejoin|icm|icmtest|netdown|"
@@ -224,6 +224,18 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 			p = put(p, end, st);
 			p = put(p, end, "]");
 		}
+		return WQ_OK;
+	}
+
+	if ((a = tok_after(line, "hudgame"))) {
+		/* 'hudgame on|off' - In-game HUD: also draw over games and apps. Off
+		 * (default) = only over the Home screen, LiveArea, quick menu and
+		 * Settings. Config only - does not arm or disarm the overlay. */
+		int on = str_eq(a, "on");
+		if (!on && !str_eq(a, "off")) { put(p, end, "err: hudgame on|off"); return WQ_ERR_ARG; }
+		int r = wqHudSetInGame(on);
+		if (r < 0) { put(p, end, "err: hudgame rejected"); return r; }
+		put(p, end, on ? "hudgame on" : "hudgame off");
 		return WQ_OK;
 	}
 

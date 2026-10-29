@@ -39,6 +39,12 @@ static int      g_enabled = 0;
 static int      g_draw_armed = 0;   /* framebuffer PIXEL-WRITE gate - OFF default */
 static int      g_pos = WQ_HUD_POS_DEFAULT;   /* screen corner; WQ_HUD_POS_*   */
 
+/* In-game HUD off (default): draw only into frames set by the registered
+ * system processes, so a game's or app's own frames are left alone. Each pid is
+ * one aligned word, written once by its process, so the hook reads it unlocked. */
+static int      g_ingame = 0;
+static volatile SceUID g_sys_pid[WQ_HUD_PROC_COUNT] = { -1, -1 };
+
 /* Double-buffered HUD state so the hook never reads a torn struct. */
 static WqHudState g_state[2];
 static volatile int g_front = 0;
@@ -267,6 +273,13 @@ static int hook_set_framebuf(int head, int index,
 	if (!g_enabled || !g_draw_armed)
 		return ret;
 
+	/* Called in the context of the process setting the frame. */
+	if (!g_ingame) {
+		SceUID pid = ksceKernelGetProcessId();
+		if (pid != g_sys_pid[WQ_HUD_PROC_SHELL] && pid != g_sys_pid[WQ_HUD_PROC_SETTINGS])
+			return ret;
+	}
+
 	/* Open the DACR so this kernel context may write the user-mapped CDRAM,
 	 * blit, then restore it. */
 	uint32_t prev_dacr = hud_dacr_open();
@@ -345,6 +358,24 @@ int hud_set_pos(int pos)
 		return WQ_ERR_ARG;
 	g_pos = pos;
 	WQ_KLOGI("hud: position -> %d", pos);
+	return WQ_OK;
+}
+
+/* Syscall context: the current process is the caller registering itself. */
+int hud_register_proc(int role)
+{
+	if (role < 0 || role >= WQ_HUD_PROC_COUNT)
+		return WQ_ERR_ARG;
+	SceUID pid = ksceKernelGetProcessId();
+	g_sys_pid[role] = pid;
+	WQ_KLOGI("hud: system process %d = pid 0x%08x", role, (unsigned)pid);
+	return WQ_OK;
+}
+
+int hud_set_ingame(int on)
+{
+	g_ingame = on ? 1 : 0;
+	WQ_KLOGI("hud: in-game HUD %s", g_ingame ? "on" : "off");
 	return WQ_OK;
 }
 

@@ -87,6 +87,13 @@ typedef struct WqHudState {
 #define WQ_HUD_POS_BOTTOM_RIGHT 3
 #define WQ_HUD_POS_DEFAULT      WQ_HUD_POS_TOP_LEFT
 
+/* System processes the HUD draws over when the in-game HUD is off: each one
+ * registers itself with wqHudRegisterProc() as it starts. Frames from any other
+ * process (a game or app) are left alone. */
+#define WQ_HUD_PROC_SHELL       0   /* SceShell: Home screen, LiveArea, quick menu */
+#define WQ_HUD_PROC_SETTINGS    1   /* the Settings app (NPXS10015)               */
+#define WQ_HUD_PROC_COUNT       2
+
 /* Profiles exposed by the "never sleep"/latency toggle. */
 #define WQ_PROFILE_MAX_PERF    0   /* PS off, auto-deep-sleep off: never sleep */
 #define WQ_PROFILE_BALANCED    1   /* default-ish PS                           */

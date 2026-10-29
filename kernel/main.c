@@ -129,6 +129,16 @@ int wqHudSetPos(int pos)
 	return hud_set_pos(pos);
 }
 
+int wqHudRegisterProc(int role)
+{
+	return hud_register_proc(role);
+}
+
+int wqHudSetInGame(int on)
+{
+	return hud_set_ingame(on);
+}
+
 /* ---- read-only self-test probes ----------------------------------------- */
 
 /* EXPERIMENTAL: the Wi-Fi chip's receive buffer (rxring.c), WQ_RXRING_OP_*.

@@ -17,6 +17,8 @@ int  hud_set_enabled(int enabled);
 int  hud_get_status(void);                   /* read-only; WQ_HUD_STATUS_* bits */
 int  hud_set_state(const WqHudState *state); /* copy-in from user             */
 int  hud_set_pos(int pos);                   /* screen corner; WQ_HUD_POS_*   */
+int  hud_register_proc(int role);            /* caller's pid; WQ_HUD_PROC_*   */
+int  hud_set_ingame(int on);                 /* 0 = system screens only       */
 
 /* Framebuffer PIXEL-WRITE gate (OFF until 'hud on' arms it with the overlay). */
 int  hud_set_draw_armed(int on);

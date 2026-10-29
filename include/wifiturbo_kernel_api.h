@@ -105,6 +105,15 @@ int wqHudSetState(const WqHudState *state);
  * Out-of-range values are ignored. */
 int wqHudSetPos(int pos);
 
+/* Register the calling process as one of the system screens the HUD draws over
+ * (WQ_HUD_PROC_*). Called by the SceShell module at boot and by the Settings
+ * plugin when the Settings app starts. */
+int wqHudRegisterProc(int role);
+
+/* In-game HUD: 1 = draw over every process, 0 (default) = only over the
+ * registered system processes, so games and apps are left alone. */
+int wqHudSetInGame(int on);
+
 /* ---- read-only self-test probes ----------------------------------------- */
 
 /* Round-trip cookie returned by wqSelfTestPing(): proves the user->kernel
@@ -151,9 +160,10 @@ typedef struct {
 	                 * Default 0 = off. */
 	int rxring;     /* EXPERIMENTAL Wi-Fi receive buffer: 0 default / 1 enhanced
 	                 * (127 slots) / 2 maximum (149). */
-	int hudpos;     /* WQ_HUD_POS_* - which screen corner the overlay draws in.
-	                 * Last field: a settings.bin from an older build is one or
-	                 * two ints shorter and the missing tail loads as 0. */
+	int hudpos;     /* WQ_HUD_POS_* - which screen corner the overlay draws in. */
+	int hudgame;    /* In-game HUD: 1 = also draw over games and apps. Default 0.
+	                 * Last field: a settings.bin from an older build is one to
+	                 * three ints shorter and the missing tail loads as 0. */
 } WqUiState;
 
 #define WQ_UI_CMD_MAX 64              /* command buffer size for wqUiSubmit/Drain */
