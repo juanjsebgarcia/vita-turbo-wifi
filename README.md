@@ -100,7 +100,9 @@ buffer drops packets, and TCP slows down after every loss.
   allowed so the battery reaches 100%.
 - 📡 **Live HUD.** An on-screen overlay with network, signal (dBm and %),
   **SNR**, channel, access point and active profile, read live from the
-  driver.
+  driver. It shows on the Home screen, in Settings and in the quick menu
+  (press the PS button in a game); turn on *In-game HUD* to keep it over games
+  too.
 - 🧭 **Smart Mesh Roaming**. For mesh and multi-AP setups:
   on a weak signal it rescans every channel and joins the strongest access
   point of the same network.
@@ -159,6 +161,8 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 |---|---|---|
 | **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off on its timer, but the Vita stays awake behind it; a single press of the power button is what puts it to sleep. While charging, standby is allowed so the battery reaches 100%. | On |
 | **Wi-Fi HUD overlay** | Shows the live overlay (network, signal, SNR, channel, AP, profile). | Off |
+| **HUD position** | Which corner of the screen the HUD sits in. | Top left |
+| **In-game HUD** | Also shows the HUD over games and apps. When off, it shows only on the Home screen, in Settings and in the quick menu (press the PS button). | Off |
 | **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up. | On |
 | **Smart Mesh Roaming** | On sustained weak signal, rescans and joins the strongest AP of the same network. | Off |
 | **40 MHz** | Lets the Vita negotiate 40 MHz channels. Needs an access point with 2.4 GHz set to 40 MHz. | Off |
