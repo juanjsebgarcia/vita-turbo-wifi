@@ -384,6 +384,9 @@ channel width.
 
 4. **Reboot the Vita** (a "Refresh taiHEN config" from HENkaku Settings is not
    enough). Then open *Settings → Network → Wi-Fi Turbo*.
+5. *Optional:* to also get *Keep Wi-Fi on* and the power profile in the PS
+   button quick menu, install `wifiturbo_qm.suprx` as described in
+   [Quick menu toggles](#quick-menu-toggles-optional) below.
 
 **Not seeing the Settings entry?** Check that `ur0:tai/wifiturbo.suprx` is
 listed under `*NPXS10015` in the config file taiHEN actually reads
