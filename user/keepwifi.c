@@ -480,7 +480,9 @@ static volatile int g_run     = 0;
  * The press arrives as SCE_POWER_CB_BUTTON_POWER_PRESS on a ScePower callback
  * (SceShell is a system process, so the button bits are delivered). From then
  * on the hold is released; WQ_SLEEP_GRACE_S later, if no SYSTEM_SUSPEND came,
- * scePowerRequestSuspend() puts the Vita to sleep. A resume clears it all. */
+ * scePowerRequestSuspend() puts the Vita to sleep. If the screen comes back
+ * first (APP_RESUMING: the user pressed again or touched a button), the sleep
+ * is cancelled and the hold returns. A resume clears it all. */
 #define WQ_SLEEP_GRACE_S  2
 
 static volatile int g_sleep_req;     /* power button pressed, sleep pending       */
@@ -497,6 +499,11 @@ static int power_cb(int notify_id, int notify_count, int info, void *common)
 	}
 	if (info & SCE_POWER_CB_SYSTEM_SUSPEND)
 		g_suspending = 1;
+	else if ((info & SCE_POWER_CB_APP_RESUMING) && g_sleep_req && !g_suspending &&
+	         !(info & SCE_POWER_CB_BUTTON_POWER_PRESS)) {
+		g_sleep_req = 0;
+		WQ_LOGI("keepwifi: screen back on before sleeping - sleep cancelled");
+	}
 	if (info & (SCE_POWER_CB_SYSTEM_RESUMING | SCE_POWER_CB_SYSTEM_RESUME)) {
 		g_sleep_req = 0;
 		g_suspending = 0;
