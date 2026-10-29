@@ -822,6 +822,30 @@ static const char *const g_tbl[WT_I18N_COUNT][WT_LANG_COUNT] = {
 	"Mostra o HUD também durante um jogo ou aplicativo. Desligado, ele só aparece na tela inicial, em Configurações e no menu rápido (botão PS).",
 	"Also show the HUD while a game or app is running. When off, it only shows on the Home screen, in Settings and in the quick menu (press the PS button).",
 	"HUD'yi bir oyun veya uygulama çalışırken de gösterir. Kapalıyken yalnızca ana ekranda, Ayarlar'da ve hızlı menüde (PS düğmesi) görünür."
+},
+
+/* WT_I18N_QM_POWER - "Wi-Fi power profile" (quick menu caption) */
+{
+	"Wi-Fi電力プロファイル",
+	"Wi-Fi power profile",
+	"Profil d'alimentation Wi-Fi",
+	"Perfil de energía Wi-Fi",
+	"Wi-Fi-Energieprofil",
+	"Profilo di alimentazione Wi-Fi",
+	"Wi-Fi-energieprofiel",
+	"Perfil de energia Wi-Fi",
+	"Профиль питания Wi-Fi",
+	"Wi-Fi 전원 프로필",
+	"Wi-Fi 電源設定檔",
+	"Wi-Fi 电源配置文件",
+	"Wi-Fi-virtaprofiili",
+	"Wi-Fi-energiprofil",
+	"Wi-Fi-strømprofil",
+	"Wi-Fi-strømprofil",
+	"Profil zasilania Wi-Fi",
+	"Perfil de energia Wi-Fi",
+	"Wi-Fi power profile",
+	"Wi-Fi güç profili"
 }
 
 };
