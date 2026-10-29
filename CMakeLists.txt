@@ -187,6 +187,8 @@ target_link_libraries(wifiturbo_qm
   ${QMR_STUB_DIR}/libQuickMenuReborn_stub.a
   SceRegistryMgr_stub_weak      # system language (wifiturbo_i18n.c)
   SceAppUtil_stub_weak
+  SceIofilemgr_stub_weak        # writes the row icon to ur0:data/wifiturbo/
+  SceLibKernel_stub_weak
 )
 target_link_options(wifiturbo_qm PRIVATE -nostartfiles)
 target_compile_options(wifiturbo_qm PRIVATE -Os)

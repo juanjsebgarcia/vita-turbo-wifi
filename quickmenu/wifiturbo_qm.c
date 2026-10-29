@@ -14,10 +14,13 @@
  * load and the quick menu simply shows nothing extra.
  */
 #include <psp2/kernel/modulemgr.h>
+#include <psp2/io/fcntl.h>
+#include <psp2/io/stat.h>
 #include <psp2/types.h>
 #include <string.h>
 
 #include "qmr.h"
+#include "qm_icon.h"
 
 #include "../include/wifiturbo.h"
 #include "../include/wifiturbo_kernel_api.h"
@@ -28,6 +31,13 @@
 #define ID_SEPARATOR   "wifiturbo_qm_sep"
 #define ID_KEEP_PLANE  "wifiturbo_qm_keep_plane"
 #define ID_KEEP_TEXT   "wifiturbo_qm_keep_text"
+#define ID_KEEP_ICON   "wifiturbo_qm_keep_icon"
+#define ID_ICON_TEX    "wifiturbo_qm_icon_tex"
+
+/* QuickMenuReborn loads textures from files, so the icon built into this
+ * plugin is written out once (and again if it ever changes). */
+#define ICON_DIR       "ur0:data/wifiturbo"
+#define ICON_PATH      ICON_DIR "/qm_icon.png"
 #define ID_KEEP_BOX    "wifiturbo_qm_keep_box"
 #define ID_PROF_TEXT   "wifiturbo_qm_prof_text"
 #define ID_PROF_PLANE  "wifiturbo_qm_prof_plane"
@@ -130,6 +140,21 @@ static void on_profile(const char *id, SceInt32 hash, SceInt32 event, void *user
 	show_profile(prof);             /* the published state follows within 1 s */
 }
 
+/* Write the built-in icon to ICON_PATH unless it is already there, intact. */
+static int icon_file_ready(void)
+{
+	SceIoStat st;
+	if (sceIoGetstat(ICON_PATH, &st) >= 0 && st.st_size == (SceOff)sizeof(k_qm_icon_png))
+		return 1;
+	sceIoMkdir(ICON_DIR, 0777);
+	SceUID fd = sceIoOpen(ICON_PATH, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0666);
+	if (fd < 0)
+		return 0;
+	int n = sceIoWrite(fd, k_qm_icon_png, sizeof(k_qm_icon_png));
+	sceIoClose(fd);
+	return n == (int)sizeof(k_qm_icon_png);
+}
+
 static void text_row(const char *id, const char *parent, float w, float h, float x)
 {
 	QuickMenuRebornRegisterWidget(id, parent, QMR_TEXT);
@@ -155,11 +180,19 @@ int module_start(SceSize argc, const void *args)
 
 	QuickMenuRebornSeparator(ID_SEPARATOR, QMR_SEPARATOR_HEIGHT);
 
-	/* Keep Wi-Fi on: label left, check box right. QuickMenuReborn's text style
-	 * centres text in its box, so the box is shifted left of the check box. */
+	/* Keep Wi-Fi on: icon and label left, check box right, laid out like
+	 * Sony's rows (icon centred at x 118, text from x 161 on screen). The text
+	 * style centres text in its box, so the box sits right of the icon. */
 	container(ID_KEEP_PLANE, 80);
 	QuickMenuRebornAssignOnLoadHandler(on_keep_load, ID_KEEP_PLANE);
-	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, 640, 75, -185);
+	if (icon_file_ready() && QuickMenuRebornRegisterTexture(ID_ICON_TEX, ICON_PATH) >= 0) {
+		QuickMenuRebornRegisterWidget(ID_KEEP_ICON, ID_KEEP_PLANE, QMR_PLANE);
+		QuickMenuRebornSetWidgetSize(ID_KEEP_ICON, 48, 48, 0, 0);
+		QuickMenuRebornSetWidgetColor(ID_KEEP_ICON, 1, 1, 1, 1);
+		QuickMenuRebornSetWidgetPosition(ID_KEEP_ICON, -362, 0, 0, 0);
+		QuickMenuRebornSetWidgetTexture(ID_KEEP_ICON, ID_ICON_TEX);
+	}
+	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, 640, 75, -152);
 	QuickMenuRebornRegisterWidget(ID_KEEP_BOX, ID_KEEP_PLANE, QMR_CHECK_BOX);
 	QuickMenuRebornSetWidgetSize(ID_KEEP_BOX, 48, 48, 0, 0);
 	QuickMenuRebornSetWidgetColor(ID_KEEP_BOX, 1, 1, 1, 1);
@@ -192,6 +225,8 @@ int module_stop(SceSize argc, const void *args)
 	QuickMenuRebornUnregisterWidget(ID_PROF_TEXT);
 	QuickMenuRebornUnregisterWidget(ID_KEEP_BOX);
 	QuickMenuRebornUnregisterWidget(ID_KEEP_TEXT);
+	QuickMenuRebornUnregisterWidget(ID_KEEP_ICON);
+	QuickMenuRebornUnregisterTexture(ID_ICON_TEX);
 	QuickMenuRebornUnregisterWidget(ID_KEEP_PLANE);
 	QuickMenuRebornRemoveSeparator(ID_SEPARATOR);
 	return SCE_KERNEL_STOP_SUCCESS;

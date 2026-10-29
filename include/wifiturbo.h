@@ -22,7 +22,7 @@
 
 /* Release version. The .yml module versions carry major.minor (0.1); bump all
  * three together. Logged in both modules' init banner so a log pins the build. */
-#define WQ_VERSION_STR    "0.4.0"
+#define WQ_VERSION_STR    "0.4.1"
 
 #define WQ_SSID_MAX               32          /* each SSID 1..32 chars          */
 
