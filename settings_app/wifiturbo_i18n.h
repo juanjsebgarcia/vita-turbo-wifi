@@ -108,9 +108,6 @@ enum wq_i18n_id {
 	WT_I18N_ROW_HUDGAME,        /* "In-game HUD"              */
 	WT_I18N_HINT_HUDGAME,
 
-	/* Quick menu (quickmenu/wifiturbo_qm.c) */
-	WT_I18N_QM_POWER,           /* "Wi-Fi power profile"      */
-
 	WT_I18N_COUNT
 };
 

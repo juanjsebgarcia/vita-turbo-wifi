@@ -25,7 +25,6 @@
 /* QuickMenuReborn keeps every client's widgets in one list keyed by these ids,
  * so they carry our prefix. */
 #define ID_SEPARATOR   "wifiturbo_qm_sep"
-#define ID_TITLE       "wifiturbo_qm_title"
 #define ID_KEEP_PLANE  "wifiturbo_qm_keep_plane"
 #define ID_KEEP_TEXT   "wifiturbo_qm_keep_text"
 #define ID_KEEP_BOX    "wifiturbo_qm_keep_box"
@@ -94,6 +93,18 @@ BUTTON_HANDLER(on_profile)
 	show_profile(prof);             /* the published state follows within 1 s */
 }
 
+/* "Wi-Fi Turbo - <row>": the product name is the same in every language. */
+static const char *prefixed(char *buf, int cap, int row)
+{
+	const char *parts[3] = { wq_i18n(WT_I18N_TITLE), " - ", wq_i18n(row) };
+	int n = 0;
+	for (int k = 0; k < 3; k++)
+		for (const char *c = parts[k]; *c && n < cap - 1; c++)
+			buf[n++] = *c;
+	buf[n] = 0;
+	return buf;
+}
+
 static void text_row(const char *id, const char *parent, float w, float h, float x, const char *label)
 {
 	QuickMenuRebornRegisterWidget(id, parent, text);
@@ -117,13 +128,15 @@ int module_start(SceSize argc, const void *args)
 {
 	(void)argc; (void)args;
 
+	char label[128];   /* QuickMenuReborn copies each label */
+
 	QuickMenuRebornSeparator(ID_SEPARATOR, SCE_SEPARATOR_HEIGHT);
-	text_row(ID_TITLE, NULL, SCE_PLANE_WIDTH, 50, 0, wq_i18n(WT_I18N_TITLE));
 
 	/* Keep Wi-Fi on: label left, check box right. */
 	container(ID_KEEP_PLANE, 80);
 	QuickMenuRebornAssignOnLoadHandler(on_keep_load, ID_KEEP_PLANE);
-	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, 500, 75, -255, wq_i18n(WT_I18N_ROW_KEEP));
+	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, 640, 75, -185,
+	         prefixed(label, sizeof(label), WT_I18N_ROW_KEEP));
 	QuickMenuRebornRegisterWidget(ID_KEEP_BOX, ID_KEEP_PLANE, check_box);
 	QuickMenuRebornSetWidgetSize(ID_KEEP_BOX, 48, 48, 0, 0);
 	QuickMenuRebornSetWidgetColor(ID_KEEP_BOX, 1, 1, 1, 1);
@@ -132,7 +145,8 @@ int module_start(SceSize argc, const void *args)
 	QuickMenuRebornRegisterEventHanlder(ID_KEEP_BOX, QMR_BUTTON_RELEASE_ID, on_keep_toggle, NULL);
 
 	/* Power profile: a caption, then one button per profile. */
-	text_row(ID_PROF_TEXT, NULL, SCE_PLANE_WIDTH, 50, 0, wq_i18n(WT_I18N_QM_POWER));
+	text_row(ID_PROF_TEXT, NULL, SCE_PLANE_WIDTH, 50, 0,
+	         prefixed(label, sizeof(label), WT_I18N_ROW_POWER));
 	container(ID_PROF_PLANE, PROF_BUTTON_H + 30);
 	for (int i = 0; i < 3; i++) {
 		QuickMenuRebornRegisterWidget(k_prof_id[i], ID_PROF_PLANE, button);
@@ -157,7 +171,6 @@ int module_stop(SceSize argc, const void *args)
 	QuickMenuRebornUnregisterWidget(ID_KEEP_BOX);
 	QuickMenuRebornUnregisterWidget(ID_KEEP_TEXT);
 	QuickMenuRebornUnregisterWidget(ID_KEEP_PLANE);
-	QuickMenuRebornUnregisterWidget(ID_TITLE);
 	QuickMenuRebornRemoveSeparator(ID_SEPARATOR);
 	return SCE_KERNEL_STOP_SUCCESS;
 }
