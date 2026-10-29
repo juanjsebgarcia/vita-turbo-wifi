@@ -3,9 +3,12 @@
  *
  * A 1 Hz sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND) keeps
  * the auto-standby timer from ever expiring, and leaves the screen's dim/off
- * timers alone. No power lock: the tick alone is enough. Known limitation:
- * while ticking, a power-button press only turns the screen off - the Vita
- * does not sleep (tested on device; with nothing ticking, it sleeps).
+ * timers alone. No power lock: the tick alone is enough. While ticking, a
+ * power-button press only turns the screen off - SceShell does not sleep
+ * (tested on device; with nothing ticking, it sleeps). So a ScePower callback
+ * watches for the press: it stops the tick and, if the Vita has not started
+ * sleeping on its own shortly after, requests the suspend itself. The hold
+ * comes back on resume.
  */
 #include <psp2/kernel/processmgr.h>   /* sceKernelPowerTick                      */
 #include <psp2/kernel/threadmgr.h>
@@ -473,6 +476,47 @@ static volatile int g_enabled = 1;   /* default ON - the user wants Wi-Fi kept u
 static volatile int g_autorecon = 1;  /* "Auto-reconnect on drop" - default ON        */
 static volatile int g_run     = 0;
 
+/* ---- power button => let the Vita sleep --------------------------------------
+ * The press arrives as SCE_POWER_CB_BUTTON_POWER_PRESS on a ScePower callback
+ * (SceShell is a system process, so the button bits are delivered). From then
+ * on the hold is released; WQ_SLEEP_GRACE_S later, if no SYSTEM_SUSPEND came,
+ * scePowerRequestSuspend() puts the Vita to sleep. A resume clears it all. */
+#define WQ_SLEEP_GRACE_S  2
+
+static volatile int g_sleep_req;     /* power button pressed, sleep pending       */
+static volatile int g_suspending;    /* SYSTEM_SUSPEND seen, not yet resumed      */
+static int          g_sleep_t;       /* seconds since the press                   */
+
+static int power_cb(int notify_id, int notify_count, int info, void *common)
+{
+	(void)notify_id; (void)notify_count; (void)common;
+	WQ_LOGI("keepwifi: power event 0x%08x", (unsigned)info);
+	if (info & SCE_POWER_CB_BUTTON_POWER_PRESS) {
+		g_sleep_req = 1;
+		g_sleep_t = 0;
+	}
+	if (info & SCE_POWER_CB_SYSTEM_SUSPEND)
+		g_suspending = 1;
+	if (info & (SCE_POWER_CB_SYSTEM_RESUMING | SCE_POWER_CB_SYSTEM_RESUME)) {
+		g_sleep_req = 0;
+		g_suspending = 0;
+	}
+	return 0;
+}
+
+/* One second of a pending sleep request. */
+static void sleep_tick(void)
+{
+	if (!g_sleep_req || g_suspending)
+		return;
+	if (++g_sleep_t == WQ_SLEEP_GRACE_S) {
+		WQ_LOGW("keepwifi: power button - requesting sleep");
+		int r = scePowerRequestSuspend();
+		if (r < 0)
+			WQ_LOGE("keepwifi: scePowerRequestSuspend failed (0x%08x)", (unsigned)r);
+	}
+}
+
 /* Should we hold auto-suspend off this tick?
  *
  * Only while the Vita is running on its BATTERY. On external power with the
@@ -486,7 +530,7 @@ static volatile int g_run     = 0;
  * silent charge cap). See GitHub issue #6. */
 static int keepwifi_hold_suspend(void)
 {
-	if (!g_enabled)
+	if (!g_enabled || g_sleep_req)    /* power button pressed: let it sleep  */
 		return 0;
 	if (scePowerIsPowerOnline() != 1)   /* on battery (or unknown) -> keep Wi-Fi up */
 		return 1;
@@ -501,7 +545,14 @@ static int keepwifi_hold_suspend(void)
 static int keepwifi_thread(SceSize args, void *argp)
 {
 	(void)args; (void)argp;
+	/* The callback runs on this thread, in sceKernelDelayThreadCB below. */
+	SceUID cb = sceKernelCreateCallback("WqPowerCb", 0, power_cb, NULL);
+	int r = cb < 0 ? cb : scePowerRegisterCallback(cb);
+	if (r < 0)
+		WQ_LOGE("keepwifi: power callback failed (0x%08x) - power button "
+		        "will not sleep the Vita while Keep Wi-Fi is on", (unsigned)r);
 	while (g_run) {
+		sleep_tick();
 		if (keepwifi_hold_suspend())      /* standby only: screen may still dim/turn off */
 			sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
 		if (g_icmtest) {
@@ -516,7 +567,11 @@ static int keepwifi_thread(SceSize args, void *argp)
 		}
 		smart_roam();         /* independent of keepwifi: roam on weak signal   */
 		wq_settings_pump();   /* drain the Settings mailbox + publish state     */
-		sceKernelDelayThread(1000 * 1000);
+		sceKernelDelayThreadCB(1000 * 1000);
+	}
+	if (cb >= 0) {
+		scePowerUnregisterCallback(cb);
+		sceKernelDeleteCallback(cb);
 	}
 	return 0;
 }
