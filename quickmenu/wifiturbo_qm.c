@@ -63,14 +63,16 @@ ONLOAD_HANDLER(on_menu_open)
 	WqUiState st;
 	if (wqUiReadState(&st) < 0)
 		return;
-	QuickMenuRebornSetCheckBoxState(ID_KEEP_BOX, st.keepwifi ? CHECKBOX_ON : CHECKBOX_OFF);
+	/* Takes the checked state itself (1 = ticked), not QuickMenuReborn's
+	 * CheckBoxState enum, whose CHECKBOX_ON is 0. */
+	QuickMenuRebornSetCheckBoxState(ID_KEEP_BOX, st.keepwifi ? 1 : 0);
 	show_profile(st.profile);
 }
 
 BUTTON_HANDLER(on_keep_toggle)
 {
 	(void)id; (void)hash; (void)eventId; (void)userDat;
-	int on = QuickMenuRebornGetCheckboxValue(ID_KEEP_BOX) == 1;
+	int on = QuickMenuRebornGetCheckboxValue(ID_KEEP_BOX) > 0;   /* live widget: ticked */
 	wqUiSubmit(on ? "keepwifi on" : "keepwifi off");
 }
 
