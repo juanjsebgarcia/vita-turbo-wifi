@@ -132,7 +132,7 @@ int module_start(SceSize argc, const void *args)
 	QuickMenuRebornRegisterEventHanlder(ID_KEEP_BOX, QMR_BUTTON_RELEASE_ID, on_keep_toggle, NULL);
 
 	/* Power profile: a caption, then one button per profile. */
-	text_row(ID_PROF_TEXT, NULL, SCE_PLANE_WIDTH, 50, 0, wq_i18n(WT_I18N_ROW_POWER));
+	text_row(ID_PROF_TEXT, NULL, SCE_PLANE_WIDTH, 50, 0, wq_i18n(WT_I18N_QM_POWER));
 	container(ID_PROF_PLANE, PROF_BUTTON_H + 30);
 	for (int i = 0; i < 3; i++) {
 		QuickMenuRebornRegisterWidget(k_prof_id[i], ID_PROF_PLANE, button);
