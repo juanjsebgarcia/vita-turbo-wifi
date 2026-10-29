@@ -108,6 +108,11 @@ enum wq_i18n_id {
 	WT_I18N_ROW_HUDGAME,        /* "In-game HUD"              */
 	WT_I18N_HINT_HUDGAME,
 
+	/* Quick menu profile buttons: short forms that fit the 260 px buttons */
+	WT_I18N_QM_MAXPERF,
+	WT_I18N_QM_BALANCED,
+	WT_I18N_QM_BATTERY,
+
 	WT_I18N_COUNT
 };
 
