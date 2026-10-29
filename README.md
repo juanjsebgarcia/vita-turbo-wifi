@@ -11,14 +11,10 @@ A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60 to 3.7
 </div>
 
 > [!IMPORTANT]
-> **Supported firmware: 3.60, 3.65 and 3.68**, all tested on a console (from
-> [v0.2.0](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest)).
-> **Every other firmware from 3.61 to 3.74 is in alpha** from
-> [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha),
-> not yet tested on a console.
-> Other firmware versions are not supported: don't install it there.
-> **v0.4.0** adds [quick menu toggles](#quick-menu-toggles-optional) for
-> *Keep Wi-Fi on* and the power profile. If something doesn't work, please
+> **Firmware 3.60 to 3.74.** 3.60, 3.65 and 3.68 are tested on a console; the
+> others use the same Wi-Fi drivers but haven't been tested on one yet. Other
+> firmware versions are not supported: don't install it there. If something
+> doesn't work, please
 > [open an issue](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues)
 > with your logs.
 
@@ -322,35 +318,14 @@ terms.
 
 ## Install
 
-**Requirements:** a PS Vita or PS TV with HENkaku or Ensō (taiHEN), on one of
-these firmware versions. Other versions are not supported. For the 40 MHz
-option you also need an access point with its 2.4 GHz radio set to 40 MHz
-channel width.
-
-| Firmware | Status | Download |
-|---|---|---|
-| 3.60 | Tested | [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest) |
-| 3.61 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
-| 3.63 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
-| 3.65 | Tested | [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest) |
-| 3.67 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
-| 3.68 | Tested | [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest) |
-| 3.69 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
-| 3.70 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
-| 3.71 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
-| 3.72 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
-| 3.73 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
-| 3.74 | Alpha, not yet tested on a console | [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha) |
-
-> From 3.63 you need **v0.2.0 or later**: v0.1.0 does not load there. From
-> 3.71 you need **v0.2.1-alpha or later**: Sony changed the Wi-Fi driver in
-> 3.71, and older versions leave the 40 MHz, power profile, roaming and SNR
-> features switched off.
+**Requirements:** a PS Vita or PS TV with HENkaku or Ensō (taiHEN), on
+firmware **3.60 to 3.74** (3.60, 3.65 and 3.68 are tested on a console; the
+others aren't yet). Other versions are not supported. For the 40 MHz option
+you also need an access point with its 2.4 GHz radio set to 40 MHz channel
+width.
 
 1. Download `wifiturbo_kernel.skprx` and `wifiturbo.suprx` from the
-   [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest)
-   (on a firmware marked alpha above, from
-   [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha)).
+   [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest).
 2. Copy both files to `ur0:tai/`, for example with VitaShell over FTP or USB.
 3. **Find your config file.** If `ux0:tai/config.txt` exists, edit **that**
    one: taiHEN reads it first and ignores `ur0:tai/config.txt`. This is the
