@@ -16,7 +16,7 @@
 #include <psp2/kernel/modulemgr.h>
 #include <psp2/types.h>
 
-#include "quickmenureborn/qm_reborn.h"
+#include "qmr.h"
 
 #include "../include/wifiturbo.h"
 #include "../include/wifiturbo_kernel_api.h"
@@ -61,7 +61,7 @@ static void show_profile(int prof)
  * default recall sets it correctly from its saved-state file, so store the
  * current value there before the box is built - this runs as the OnLoad of
  * its parent plane, which is created first. */
-ONLOAD_HANDLER(on_keep_load)
+static void on_keep_load(const char *id)
 {
 	(void)id;
 	WqUiState st;
@@ -70,7 +70,7 @@ ONLOAD_HANDLER(on_keep_load)
 }
 
 /* Runs as the OnLoad of the last widget we register, when all of ours exist. */
-ONLOAD_HANDLER(on_menu_open)
+static void on_menu_open(const char *id)
 {
 	(void)id;
 	WqUiState st;
@@ -78,17 +78,17 @@ ONLOAD_HANDLER(on_menu_open)
 		show_profile(st.profile);
 }
 
-BUTTON_HANDLER(on_keep_toggle)
+static void on_keep_toggle(const char *id, SceInt32 hash, SceInt32 event, void *user)
 {
-	(void)id; (void)hash; (void)eventId; (void)userDat;
+	(void)id; (void)hash; (void)event; (void)user;
 	int on = QuickMenuRebornGetCheckboxValue(ID_KEEP_BOX) > 0;   /* live widget: ticked */
 	wqUiSubmit(on ? "keepwifi on" : "keepwifi off");
 }
 
-BUTTON_HANDLER(on_profile)
+static void on_profile(const char *id, SceInt32 hash, SceInt32 event, void *user)
 {
-	(void)id; (void)hash; (void)eventId;
-	int prof = (int)userDat;
+	(void)id; (void)hash; (void)event;
+	int prof = (int)user;
 	wqUiSubmit(k_prof_cmd[prof]);   /* reconnects Wi-Fi for a few seconds */
 	show_profile(prof);             /* the published state follows within 1 s */
 }
@@ -107,7 +107,7 @@ static const char *prefixed(char *buf, int cap, int row)
 
 static void text_row(const char *id, const char *parent, float w, float h, float x, const char *label)
 {
-	QuickMenuRebornRegisterWidget(id, parent, text);
+	QuickMenuRebornRegisterWidget(id, parent, QMR_TEXT);
 	QuickMenuRebornSetWidgetSize(id, w, h, 0, 0);
 	QuickMenuRebornSetWidgetColor(id, 1, 1, 1, 1);
 	QuickMenuRebornSetWidgetPosition(id, x, 0, 0, 0);
@@ -116,8 +116,8 @@ static void text_row(const char *id, const char *parent, float w, float h, float
 
 static void container(const char *id, float h)
 {
-	QuickMenuRebornRegisterWidget(id, NULL, plane);
-	QuickMenuRebornSetWidgetSize(id, SCE_PLANE_WIDTH, h, 0, 0);
+	QuickMenuRebornRegisterWidget(id, NULL, QMR_PLANE);
+	QuickMenuRebornSetWidgetSize(id, QMR_ROW_WIDTH, h, 0, 0);
 	QuickMenuRebornSetWidgetColor(id, 1, 1, 1, 0);   /* invisible container */
 }
 
@@ -130,7 +130,7 @@ int module_start(SceSize argc, const void *args)
 
 	char label[128];   /* QuickMenuReborn copies each label */
 
-	QuickMenuRebornSeparator(ID_SEPARATOR, SCE_SEPARATOR_HEIGHT);
+	QuickMenuRebornSeparator(ID_SEPARATOR, QMR_SEPARATOR_HEIGHT);
 
 	/* Keep Wi-Fi on: label left, check box right. QuickMenuReborn's text style
 	 * centres text in its box, so the box is shifted left of the check box. */
@@ -138,22 +138,22 @@ int module_start(SceSize argc, const void *args)
 	QuickMenuRebornAssignOnLoadHandler(on_keep_load, ID_KEEP_PLANE);
 	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, 640, 75, -185,
 	         prefixed(label, sizeof(label), WT_I18N_ROW_KEEP));
-	QuickMenuRebornRegisterWidget(ID_KEEP_BOX, ID_KEEP_PLANE, check_box);
+	QuickMenuRebornRegisterWidget(ID_KEEP_BOX, ID_KEEP_PLANE, QMR_CHECK_BOX);
 	QuickMenuRebornSetWidgetSize(ID_KEEP_BOX, 48, 48, 0, 0);
 	QuickMenuRebornSetWidgetColor(ID_KEEP_BOX, 1, 1, 1, 1);
 	QuickMenuRebornSetWidgetPosition(ID_KEEP_BOX, 350, 0, 0, 0);
 	QuickMenuRebornAssignDefaultCheckBoxRecall(ID_KEEP_BOX);
-	QuickMenuRebornRegisterEventHanlder(ID_KEEP_BOX, QMR_BUTTON_RELEASE_ID, on_keep_toggle, NULL);
+	QuickMenuRebornRegisterEventHanlder(ID_KEEP_BOX, QMR_EVENT_RELEASE, on_keep_toggle, NULL);
 
 	/* Power profile: a centred caption, then one button per profile. */
-	text_row(ID_PROF_TEXT, NULL, SCE_PLANE_WIDTH, 50, 0, wq_i18n(WT_I18N_ROW_POWER));
+	text_row(ID_PROF_TEXT, NULL, QMR_ROW_WIDTH, 50, 0, wq_i18n(WT_I18N_ROW_POWER));
 	container(ID_PROF_PLANE, PROF_BUTTON_H + 30);
 	for (int i = 0; i < 3; i++) {
-		QuickMenuRebornRegisterWidget(k_prof_id[i], ID_PROF_PLANE, button);
+		QuickMenuRebornRegisterWidget(k_prof_id[i], ID_PROF_PLANE, QMR_BUTTON);
 		QuickMenuRebornSetWidgetSize(k_prof_id[i], PROF_BUTTON_W, PROF_BUTTON_H, 0, 0);
 		QuickMenuRebornSetWidgetPosition(k_prof_id[i], (i - 1) * PROF_BUTTON_GAP, 0, 0, 0);
 		QuickMenuRebornSetWidgetLabel(k_prof_id[i], wq_i18n(k_prof_text[i]));
-		QuickMenuRebornRegisterEventHanlder(k_prof_id[i], QMR_BUTTON_RELEASE_ID, on_profile, (void *)i);
+		QuickMenuRebornRegisterEventHanlder(k_prof_id[i], QMR_EVENT_RELEASE, on_profile, (void *)i);
 	}
 	show_profile(-1);
 	QuickMenuRebornAssignOnLoadHandler(on_menu_open, k_prof_id[2]);
