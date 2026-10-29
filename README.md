@@ -17,7 +17,7 @@ A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60 to 3.7
 > [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha),
 > not yet tested on a console.
 > Other firmware versions are not supported: don't install it there.
-> **v0.3.0-alpha** adds the experimental
+> **v0.3.1-alpha** adds the experimental
 > [Wi-Fi receive buffer](#wi-fi-receive-buffer-experimental) option. If
 > something doesn't work, please
 > [open an issue](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues)
@@ -62,7 +62,7 @@ straight into RAM on the Vita (no memory card in the path). Wake-up latency is
 two runs of 30 pings sent 2 s apart, which gives the radio time to doze; that's the
 situation where power save hurts. See [Measuring it yourself](#measuring-it-yourself).
 
-### With the Wi-Fi receive buffer (v0.3.0-alpha)
+### With the Wi-Fi receive buffer (v0.3.1-alpha)
 
 Each row compares two setups in the same session, alternating between them;
 compare within a row, not across rows (signal strength differed between
