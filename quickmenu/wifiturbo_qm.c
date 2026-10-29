@@ -77,7 +77,7 @@ static const char *label_for(const char *id, char *buf, int cap)
 	if (!strcmp(id, ID_KEEP_TEXT))
 		return prefixed(buf, cap, WT_I18N_ROW_KEEP);
 	if (!strcmp(id, ID_PROF_TEXT))
-		return wq_i18n(WT_I18N_ROW_POWER);
+		return prefixed(buf, cap, WT_I18N_ROW_POWER);
 	for (int i = 0; i < 3; i++)
 		if (!strcmp(id, k_prof_id[i]))
 			return wq_i18n(k_prof_text[i]);
