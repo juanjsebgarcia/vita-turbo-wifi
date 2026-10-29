@@ -17,7 +17,7 @@ A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60 to 3.7
 > [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha),
 > not yet tested on a console.
 > Other firmware versions are not supported: don't install it there.
-> **v0.3.1-alpha** adds the experimental
+> **v0.3.0-alpha** adds the experimental
 > [Wi-Fi receive buffer](#wi-fi-receive-buffer-experimental) option. If
 > something doesn't work, please
 > [open an issue](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues)
@@ -62,7 +62,7 @@ straight into RAM on the Vita (no memory card in the path). Wake-up latency is
 two runs of 30 pings sent 2 s apart, which gives the radio time to doze; that's the
 situation where power save hurts. See [Measuring it yourself](#measuring-it-yourself).
 
-### With the Wi-Fi receive buffer (v0.3.1-alpha)
+### With the Wi-Fi receive buffer (v0.3.0-alpha)
 
 Each row compares two setups in the same session, alternating between them;
 compare within a row, not across rows (signal strength differed between
@@ -93,9 +93,8 @@ buffer drops packets, and TCP slows down after every loss.
   points don't disconnect a quiet Vita.
 - 🔋 **Keep Wi-Fi on.** Stops the Vita dropping into standby (deep sleep), so
   downloads and remote sessions don't die. The screen still dims and turns off
-  as normal, but while this is on **the power button only turns the screen
-  off**: the Vita stays awake and connected. Turn it off when you want the
-  Vita to sleep, or to save battery.
+  as normal. Pressing the power button still puts the Vita to sleep, and while
+  it is charging it is allowed to sleep so the battery reaches 100%.
 - 📡 **Live HUD.** An on-screen overlay with network, signal (dBm and %),
   **SNR**, channel, access point and active profile, read live from the
   driver.
@@ -155,7 +154,7 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 
 | Option | What it does | Default |
 |---|---|---|
-| **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off, but the power button only turns the screen off rather than sleeping the Vita. | On |
+| **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off, and the power button still puts the Vita to sleep. Charging is not held awake, so the battery reaches 100%. | On |
 | **Wi-Fi HUD overlay** | Shows the live overlay (network, signal, SNR, channel, AP, profile). | Off |
 | **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up. | On |
 | **Smart Mesh Roaming** | On sustained weak signal, rescans and joins the strongest AP of the same network. | Off |
