@@ -28,7 +28,6 @@
 #define ID_KEEP_PLANE  "wifiturbo_qm_keep_plane"
 #define ID_KEEP_TEXT   "wifiturbo_qm_keep_text"
 #define ID_KEEP_BOX    "wifiturbo_qm_keep_box"
-#define ID_PROF_CAP    "wifiturbo_qm_prof_cap"
 #define ID_PROF_TEXT   "wifiturbo_qm_prof_text"
 #define ID_PROF_PLANE  "wifiturbo_qm_prof_plane"
 
@@ -133,15 +132,11 @@ int module_start(SceSize argc, const void *args)
 
 	QuickMenuRebornSeparator(ID_SEPARATOR, SCE_SEPARATOR_HEIGHT);
 
-	/* QuickMenuReborn's text style centres text in its box, so both captions
-	 * use the same box, shifted left, to line up on the left. */
-#define CAPTION_W   640.0f
-#define CAPTION_X  -185.0f
-
-	/* Keep Wi-Fi on: label left, check box right. */
+	/* Keep Wi-Fi on: label left, check box right. QuickMenuReborn's text style
+	 * centres text in its box, so the box is shifted left of the check box. */
 	container(ID_KEEP_PLANE, 80);
 	QuickMenuRebornAssignOnLoadHandler(on_keep_load, ID_KEEP_PLANE);
-	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, CAPTION_W, 75, CAPTION_X,
+	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, 640, 75, -185,
 	         prefixed(label, sizeof(label), WT_I18N_ROW_KEEP));
 	QuickMenuRebornRegisterWidget(ID_KEEP_BOX, ID_KEEP_PLANE, check_box);
 	QuickMenuRebornSetWidgetSize(ID_KEEP_BOX, 48, 48, 0, 0);
@@ -150,10 +145,8 @@ int module_start(SceSize argc, const void *args)
 	QuickMenuRebornAssignDefaultCheckBoxRecall(ID_KEEP_BOX);
 	QuickMenuRebornRegisterEventHanlder(ID_KEEP_BOX, QMR_BUTTON_RELEASE_ID, on_keep_toggle, NULL);
 
-	/* Power profile: a caption, then one button per profile. */
-	container(ID_PROF_CAP, 50);
-	text_row(ID_PROF_TEXT, ID_PROF_CAP, CAPTION_W, 50, CAPTION_X,
-	         prefixed(label, sizeof(label), WT_I18N_ROW_POWER));
+	/* Power profile: a centred caption, then one button per profile. */
+	text_row(ID_PROF_TEXT, NULL, SCE_PLANE_WIDTH, 50, 0, wq_i18n(WT_I18N_ROW_POWER));
 	container(ID_PROF_PLANE, PROF_BUTTON_H + 30);
 	for (int i = 0; i < 3; i++) {
 		QuickMenuRebornRegisterWidget(k_prof_id[i], ID_PROF_PLANE, button);
@@ -175,7 +168,6 @@ int module_stop(SceSize argc, const void *args)
 		QuickMenuRebornUnregisterWidget(k_prof_id[i]);
 	QuickMenuRebornUnregisterWidget(ID_PROF_PLANE);
 	QuickMenuRebornUnregisterWidget(ID_PROF_TEXT);
-	QuickMenuRebornUnregisterWidget(ID_PROF_CAP);
 	QuickMenuRebornUnregisterWidget(ID_KEEP_BOX);
 	QuickMenuRebornUnregisterWidget(ID_KEEP_TEXT);
 	QuickMenuRebornUnregisterWidget(ID_KEEP_PLANE);
