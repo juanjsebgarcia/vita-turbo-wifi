@@ -104,6 +104,10 @@ enum wq_i18n_id {
 	WT_I18N_ITEM_POS_BL,
 	WT_I18N_ITEM_POS_BR,
 
+	/* In-game HUD toggle */
+	WT_I18N_ROW_HUDGAME,        /* "In-game HUD"              */
+	WT_I18N_HINT_HUDGAME,
+
 	WT_I18N_COUNT
 };
 

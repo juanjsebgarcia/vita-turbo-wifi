@@ -49,6 +49,7 @@ static int settings_track(const char *line)
 		else if (a[0] == '3' || (a[0] == 'b' && a[1] == 'r')) pos = 3;
 		if (pos >= 0) g_settings.hudpos = pos;
 	}
+	else if (str_pre(line, "hudgame "))       g_settings.hudgame       = str_pre(line, "hudgame on");
 	else if (str_pre(line, "hud "))           g_settings.hud           = str_pre(line, "hud on");
 	else if (str_pre(line, "autoreconnect ")) g_settings.autoreconnect = str_pre(line, "autoreconnect on");
 	else if (str_pre(line, "ht40 "))          g_settings.ht40          = str_pre(line, "ht40 on");
@@ -91,6 +92,8 @@ void wq_settings_boot(void)
 	g_settings_ready = 1;
 	wq_dispatch_exec(g_settings.keepwifi ? "keepwifi on" : "keepwifi off", rep, sizeof(rep));
 	wqHudSetPos(g_settings.hudpos);   /* set the corner before the overlay arms  */
+	wqHudRegisterProc(WQ_HUD_PROC_SHELL);   /* we run in SceShell: draw over it  */
+	wqHudSetInGame(g_settings.hudgame);
 	wq_dispatch_exec(g_settings.hud ? "hud on" : "hud off", rep, sizeof(rep));
 	wq_dispatch_exec(g_settings.autoreconnect ? "autoreconnect on" : "autoreconnect off", rep, sizeof(rep));
 	wq_dispatch_exec(g_settings.roam ? "roam on" : "roam off", rep, sizeof(rep));

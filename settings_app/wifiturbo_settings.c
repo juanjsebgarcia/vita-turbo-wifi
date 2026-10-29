@@ -56,6 +56,7 @@ static const char WT_ROWS[] =
   "<list_item id=\"wt_pos2\" title=\"wt_i_pos2\" value=\"2\"/>"
   "<list_item id=\"wt_pos3\" title=\"wt_i_pos3\" value=\"3\"/>"
  "</list>"
+ "<toggle_switch id=\"wt_hudgame\" title=\"wt_t_hudgame\" icon=\"tex_spanner\" hint=\"wt_h_hudgame\" key=\"/CONFIG/WIFITURBO/hudgame\"/>"
  "<toggle_switch id=\"wt_autorecon\" title=\"wt_t_autorecon\" icon=\"tex_spanner\" hint=\"wt_h_autorecon\" key=\"/CONFIG/WIFITURBO/autoreconnect\"/>"
  "<toggle_switch id=\"wt_roam\" title=\"wt_t_roam\" icon=\"tex_spanner\" hint=\"wt_h_roam\" key=\"/CONFIG/WIFITURBO/roam\"/>"
  "<toggle_switch id=\"wt_ht40\" title=\"wt_t_ht40\" icon=\"tex_spanner\" hint=\"wt_h_ht40\" key=\"/CONFIG/WIFITURBO/ht40\"/>"
@@ -93,6 +94,7 @@ static const wt_u16 *WT_TEXT(const char *id)
 	M("wt_t_keep",      WT_I18N_ROW_KEEP)
 	M("wt_t_hud",       WT_I18N_ROW_HUD)
 	M("wt_t_hudpos",    WT_I18N_ROW_HUDPOS)
+	M("wt_t_hudgame",   WT_I18N_ROW_HUDGAME)
 	M("wt_t_autorecon", WT_I18N_ROW_RECONNECT)
 	M("wt_t_roam",      WT_I18N_ROW_ROAM)
 	M("wt_t_ht40",      WT_I18N_ROW_HT40)
@@ -107,6 +109,7 @@ static const wt_u16 *WT_TEXT(const char *id)
 	M("wt_h_keepwifi",  WT_I18N_HINT_KEEP)
 	M("wt_h_hud",       WT_I18N_HINT_HUD)
 	M("wt_h_hudpos",    WT_I18N_HINT_HUDPOS)
+	M("wt_h_hudgame",   WT_I18N_HINT_HUDGAME)
 	M("wt_h_autorecon", WT_I18N_HINT_RECONNECT)
 	M("wt_h_roam",      WT_I18N_HINT_ROAM)
 	M("wt_h_ht40",      WT_I18N_HINT_HT40)
@@ -198,6 +201,7 @@ static int *wt_field(const char *name)
 {
 	if (s_eqn(name,"keepwifi",9))       return &g_ui.keepwifi;
 	if (s_eqn(name,"hudpos",7))         return &g_ui.hudpos;
+	if (s_eqn(name,"hudgame",8))        return &g_ui.hudgame;
 	if (s_eqn(name,"hud",4))            return &g_ui.hud;
 	if (s_eqn(name,"autoreconnect",14)) return &g_ui.autoreconnect;
 	if (s_eqn(name,"roam",5))           return &g_ui.roam;
@@ -302,6 +306,7 @@ void wq_settings_hooks_install(void)
 	g_h_load = taiHookFunctionImport(&r_load, "SceSettings",
 	              0xCAE9ACE6, 0x2DCC4AFA, load_hook);   /* sceKernelLoadStartModule */
 	WQ_LOGI("[SET] LoadStartModule import hook: uid=0x%08x", (unsigned)g_h_load);
+	wqHudRegisterProc(WQ_HUD_PROC_SETTINGS);   /* the HUD may draw over Settings */
 }
 
 void wq_settings_hooks_release(void)

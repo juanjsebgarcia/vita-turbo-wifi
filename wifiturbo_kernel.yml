@@ -30,3 +30,5 @@ wifiturbo_kernel:
         - wqRxRing
         - wqForceReboot
         - wqHudSetPos
+        - wqHudRegisterProc
+        - wqHudSetInGame
