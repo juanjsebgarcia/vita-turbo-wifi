@@ -91,10 +91,13 @@ buffer drops packets, and TCP slows down after every loss.
 - 🔁 **Auto-reconnect on drop.** Lost the link? It comes back in about 3 s.
 - 💓 **Idle keep-alive.** A tiny heartbeat to your router every 45 s, so access
   points don't disconnect a quiet Vita.
-- 🔋 **Keep Wi-Fi on.** Stops the Vita dropping into standby (deep sleep), so
-  downloads and remote sessions don't die. The screen still dims and turns off
-  as normal. Pressing the power button still puts the Vita to sleep, and while
-  it is charging it is allowed to sleep so the battery reaches 100%.
+- 🔋 **Keep Wi-Fi on.** Stops the Vita dropping into standby (deep sleep) by
+  itself, so downloads and remote sessions don't die. The screen still dims and
+  turns off on its timer, but **a dark screen is not sleep**: the Vita stays
+  awake and connected behind it, and keeps using battery. To put it to sleep,
+  **press the power button once**; that always sleeps it, even with this on
+  (hold the button for the power menu as usual). While charging, standby is
+  allowed so the battery reaches 100%.
 - 📡 **Live HUD.** An on-screen overlay with network, signal (dBm and %),
   **SNR**, channel, access point and active profile, read live from the
   driver.
@@ -154,7 +157,7 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 
 | Option | What it does | Default |
 |---|---|---|
-| **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off, and the power button still puts the Vita to sleep. Charging is not held awake, so the battery reaches 100%. | On |
+| **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off on its timer, but the Vita stays awake behind it; a single press of the power button is what puts it to sleep. While charging, standby is allowed so the battery reaches 100%. | On |
 | **Wi-Fi HUD overlay** | Shows the live overlay (network, signal, SNR, channel, AP, profile). | Off |
 | **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up. | On |
 | **Smart Mesh Roaming** | On sustained weak signal, rescans and joins the strongest AP of the same network. | Off |
