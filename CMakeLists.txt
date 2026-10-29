@@ -162,17 +162,16 @@ vita_create_self(wifiturbo.suprx wifiturbo
 #
 # Dropped into ur0:QuickMenuReborn/ (not config.txt): QuickMenuReborn loads it
 # into SceShell and builds its rows each time the quick menu opens. The
-# QuickMenuReborn header and NID table are vendored under quickmenu/
-# quickmenureborn/ (MIT, see the LICENSE there); the link stub is generated
-# from that table here, not taken prebuilt.
+# QuickMenuReborn calls it makes are declared in quickmenu/qmr.h, and their NIDs
+# listed in quickmenu/qmr_imports.yml, from which the link stub is generated.
 
 set(QMR_STUB_DIR ${CMAKE_BINARY_DIR}/qmr_stubs)
 add_custom_command(
   OUTPUT ${QMR_STUB_DIR}/libQuickMenuReborn_stub.a
   COMMAND ${CMAKE_COMMAND} -E make_directory ${QMR_STUB_DIR}
-  COMMAND vita-libs-gen-2 -yml=${CMAKE_SOURCE_DIR}/quickmenu/quickmenureborn/QuickMenuReborn.yml -output=${QMR_STUB_DIR}
+  COMMAND vita-libs-gen-2 -yml=${CMAKE_SOURCE_DIR}/quickmenu/qmr_imports.yml -output=${QMR_STUB_DIR}
   COMMAND make -s -C ${QMR_STUB_DIR}
-  DEPENDS ${CMAKE_SOURCE_DIR}/quickmenu/quickmenureborn/QuickMenuReborn.yml
+  DEPENDS ${CMAKE_SOURCE_DIR}/quickmenu/qmr_imports.yml
   COMMENT "Generating the QuickMenuReborn link stub")
 add_custom_target(qmr-stubs DEPENDS ${QMR_STUB_DIR}/libQuickMenuReborn_stub.a)
 

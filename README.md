@@ -485,7 +485,7 @@ Built on [taiHEN](https://github.com/yifanlu/taiHEN),
 [vitacompanion](https://github.com/devnoname120/vitacompanion)
 ([my fork](https://github.com/juanjsebgarcia/vitacompanion)). The quick menu
 rows use [QuickMenuReborn](https://github.com/Ibrahim778/QuickMenuReborn) by
-Ibrahim (MIT; its API header is included under `quickmenu/quickmenureborn/`).
+Ibrahim.
 Thanks to the PS Vita homebrew community.
 
 ## License
