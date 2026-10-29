@@ -19,3 +19,6 @@ modules:
           QuickMenuRebornAssignOnLoadHandler: 0x3DF0A41F
           QuickMenuRebornAssignDefaultCheckBoxRecall: 0xA29C7517
           QuickMenuRebornSaveCheckBoxState: 0x7C987BD7
+          QuickMenuRebornRegisterTexture: 0x474BBCDF
+          QuickMenuRebornUnregisterTexture: 0x7F595FCA
+          QuickMenuRebornSetWidgetTexture: 0x8475801A

@@ -45,4 +45,9 @@ int   QuickMenuRebornGetCheckboxValue(const char *id);
 int   QuickMenuRebornSaveCheckBoxState(const char *id, int state);
 int   QuickMenuRebornAssignDefaultCheckBoxRecall(const char *id);
 
+/* Textures: an image file QuickMenuReborn loads when the menu opens. */
+int   QuickMenuRebornRegisterTexture(const char *id, const char *path);
+int   QuickMenuRebornUnregisterTexture(const char *id);
+int   QuickMenuRebornSetWidgetTexture(const char *id, const char *texture_id);
+
 #endif /* WIFITURBO_QMR_H */
