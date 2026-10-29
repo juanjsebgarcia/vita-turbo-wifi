@@ -39,8 +39,10 @@ static const char *const k_prof_id[3] = {
 static const char *const k_prof_cmd[3] = {
 	"profile maxperf", "profile balanced", "profile maxbatt",
 };
+/* Short forms: the Settings page's labels overflow the buttons in some
+ * languages (issue #13). */
 static const int k_prof_text[3] = {
-	WT_I18N_ITEM_MAXPERF, WT_I18N_ITEM_BALANCED, WT_I18N_ITEM_BATTERY,
+	WT_I18N_QM_MAXPERF, WT_I18N_QM_BALANCED, WT_I18N_QM_BATTERY,
 };
 
 #define PROF_BUTTON_W   260.0f

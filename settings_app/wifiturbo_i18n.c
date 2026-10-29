@@ -822,6 +822,78 @@ static const char *const g_tbl[WT_I18N_COUNT][WT_LANG_COUNT] = {
 	"Mostra o HUD também durante um jogo ou aplicativo. Desligado, ele só aparece na tela inicial, em Configurações e no menu rápido (botão PS).",
 	"Also show the HUD while a game or app is running. When off, it only shows on the Home screen, in Settings and in the quick menu (press the PS button).",
 	"HUD'yi bir oyun veya uygulama çalışırken de gösterir. Kapalıyken yalnızca ana ekranda, Ayarlar'da ve hızlı menüde (PS düğmesi) görünür."
+},
+
+/* WT_I18N_QM_MAXPERF - short "Max performance" for the quick menu button (fits 260 px) */
+{
+	"最大性能",
+	"Max performance",
+	"Performance",
+	"Rendimiento",
+	"Leistung",
+	"Prestazioni",
+	"Prestaties",
+	"Desempenho",
+	"Максимум",
+	"최대 성능",
+	"最高效能",
+	"最高性能",
+	"Suorituskyky",
+	"Prestanda",
+	"Ydeevne",
+	"Ytelse",
+	"Wydajność",
+	"Desempenho",
+	"Max performance",
+	"Performans"
+},
+
+/* WT_I18N_QM_BALANCED - short "Balanced" for the quick menu button */
+{
+	"バランス",
+	"Balanced",
+	"Équilibré",
+	"Equilibrado",
+	"Ausgeglichen",
+	"Bilanciato",
+	"Gebalanceerd",
+	"Equilibrado",
+	"Баланс",
+	"균형",
+	"平衡",
+	"平衡",
+	"Tasapaino",
+	"Balanserad",
+	"Balanceret",
+	"Balansert",
+	"Zrównoważony",
+	"Equilibrado",
+	"Balanced",
+	"Dengeli"
+},
+
+/* WT_I18N_QM_BATTERY - short "Battery saver" for the quick menu button */
+{
+	"省電力",
+	"Battery saver",
+	"Économie",
+	"Ahorro",
+	"Sparen",
+	"Risparmio",
+	"Besparing",
+	"Poupança",
+	"Экономия",
+	"배터리 절약",
+	"省電模式",
+	"省电模式",
+	"Virransäästö",
+	"Batterispar",
+	"Batterispar",
+	"Strømsparing",
+	"Oszczędzanie",
+	"Economia",
+	"Battery saver",
+	"Tasarruf"
 }
 
 };
