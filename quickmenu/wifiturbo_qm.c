@@ -53,8 +53,33 @@ static void show_profile(int prof)
 		QuickMenuRebornSetWidgetColor(k_prof_id[i], 1.0f, 1.0f, 1.0f, i == prof ? 1.0f : 0.45f);
 }
 
-/* The menu is being built: show the current state (it may have changed in
- * Settings or over the command port since the menu was last open).
+/* "Wi-Fi Turbo - <row>": the product name is the same in every language. */
+static const char *prefixed(char *buf, int cap, int row)
+{
+	const char *parts[3] = { wq_i18n(WT_I18N_TITLE), " - ", wq_i18n(row) };
+	int n = 0;
+	for (int k = 0; k < 3; k++)
+		for (const char *c = parts[k]; *c && n < cap - 1; c++)
+			buf[n++] = *c;
+	buf[n] = 0;
+	return buf;
+}
+
+/* Labels in the current system language, re-read each time the menu opens so
+ * a language change shows without a reboot. QuickMenuReborn builds each widget
+ * from its stored label, so this works for rows not built yet. */
+static void set_labels(void)
+{
+	char label[128];   /* QuickMenuReborn copies each label */
+	QuickMenuRebornSetWidgetLabel(ID_KEEP_TEXT, prefixed(label, sizeof(label), WT_I18N_ROW_KEEP));
+	QuickMenuRebornSetWidgetLabel(ID_PROF_TEXT, wq_i18n(WT_I18N_ROW_POWER));
+	for (int i = 0; i < 3; i++)
+		QuickMenuRebornSetWidgetLabel(k_prof_id[i], wq_i18n(k_prof_text[i]));
+}
+
+/* The menu is being built: refresh the labels and show the current state (it
+ * may have changed in Settings or over the command port since the menu was
+ * last open).
  *
  * The check box can't be set directly: QuickMenuRebornSetCheckBoxState passes
  * the state in the wrong argument and always unticks it. QuickMenuReborn's
@@ -64,6 +89,7 @@ static void show_profile(int prof)
 static void on_keep_load(const char *id)
 {
 	(void)id;
+	set_labels();
 	WqUiState st;
 	if (wqUiReadState(&st) >= 0)
 		QuickMenuRebornSaveCheckBoxState(ID_KEEP_BOX, st.keepwifi ? 1 : 0);
@@ -93,18 +119,6 @@ static void on_profile(const char *id, SceInt32 hash, SceInt32 event, void *user
 	show_profile(prof);             /* the published state follows within 1 s */
 }
 
-/* "Wi-Fi Turbo - <row>": the product name is the same in every language. */
-static const char *prefixed(char *buf, int cap, int row)
-{
-	const char *parts[3] = { wq_i18n(WT_I18N_TITLE), " - ", wq_i18n(row) };
-	int n = 0;
-	for (int k = 0; k < 3; k++)
-		for (const char *c = parts[k]; *c && n < cap - 1; c++)
-			buf[n++] = *c;
-	buf[n] = 0;
-	return buf;
-}
-
 static void text_row(const char *id, const char *parent, float w, float h, float x, const char *label)
 {
 	QuickMenuRebornRegisterWidget(id, parent, QMR_TEXT);
@@ -128,16 +142,13 @@ int module_start(SceSize argc, const void *args)
 {
 	(void)argc; (void)args;
 
-	char label[128];   /* QuickMenuReborn copies each label */
-
 	QuickMenuRebornSeparator(ID_SEPARATOR, QMR_SEPARATOR_HEIGHT);
 
 	/* Keep Wi-Fi on: label left, check box right. QuickMenuReborn's text style
 	 * centres text in its box, so the box is shifted left of the check box. */
 	container(ID_KEEP_PLANE, 80);
 	QuickMenuRebornAssignOnLoadHandler(on_keep_load, ID_KEEP_PLANE);
-	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, 640, 75, -185,
-	         prefixed(label, sizeof(label), WT_I18N_ROW_KEEP));
+	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, 640, 75, -185, "");
 	QuickMenuRebornRegisterWidget(ID_KEEP_BOX, ID_KEEP_PLANE, QMR_CHECK_BOX);
 	QuickMenuRebornSetWidgetSize(ID_KEEP_BOX, 48, 48, 0, 0);
 	QuickMenuRebornSetWidgetColor(ID_KEEP_BOX, 1, 1, 1, 1);
@@ -146,15 +157,15 @@ int module_start(SceSize argc, const void *args)
 	QuickMenuRebornRegisterEventHanlder(ID_KEEP_BOX, QMR_EVENT_RELEASE, on_keep_toggle, NULL);
 
 	/* Power profile: a centred caption, then one button per profile. */
-	text_row(ID_PROF_TEXT, NULL, QMR_ROW_WIDTH, 50, 0, wq_i18n(WT_I18N_ROW_POWER));
+	text_row(ID_PROF_TEXT, NULL, QMR_ROW_WIDTH, 50, 0, "");
 	container(ID_PROF_PLANE, PROF_BUTTON_H + 30);
 	for (int i = 0; i < 3; i++) {
 		QuickMenuRebornRegisterWidget(k_prof_id[i], ID_PROF_PLANE, QMR_BUTTON);
 		QuickMenuRebornSetWidgetSize(k_prof_id[i], PROF_BUTTON_W, PROF_BUTTON_H, 0, 0);
 		QuickMenuRebornSetWidgetPosition(k_prof_id[i], (i - 1) * PROF_BUTTON_GAP, 0, 0, 0);
-		QuickMenuRebornSetWidgetLabel(k_prof_id[i], wq_i18n(k_prof_text[i]));
 		QuickMenuRebornRegisterEventHanlder(k_prof_id[i], QMR_EVENT_RELEASE, on_profile, (void *)i);
 	}
+	set_labels();
 	show_profile(-1);
 	QuickMenuRebornAssignOnLoadHandler(on_menu_open, k_prof_id[2]);
 
