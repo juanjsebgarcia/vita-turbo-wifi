@@ -23,6 +23,7 @@
 #include "../include/wifiturbo_kernel_api.h"
 
 static int g_inited = 0;
+static int g_own_init = 0;     /* our sceNetCtlInit succeeded: we must Term it */
 static int g_cb_id = -1;
 static volatile int g_last_result = 0;
 static int g_init_rc = 0;      /* last sceNetCtlInit return (for selftest)   */
@@ -70,15 +71,19 @@ int diag_init(void)
 {
 	if (g_inited)
 		return WQ_OK;
+	/* The bring-up waits for SceShell's own init (diag_netctl_ready), so
+	 * "already initialised" is the normal result here: the callback still
+	 * registers, and netctl is SceShell's to terminate, not ours. */
 	int ri = sceNetCtlInit();
 	g_init_rc = ri;
-	if (ri < 0) {
+	if (ri < 0 && (unsigned)ri != WQ_NETCTL_ERR_ALREADY_INITED) {
 		WQ_LOGW("diag_init: sceNetCtlInit failed rc=0x%08x", (unsigned)ri);
 		return WQ_ERR_NOT_READY;
 	}
 	int rc = sceNetCtlInetRegisterCallback(netctl_cb, NULL, &g_cb_id);
 	if (rc < 0)
 		WQ_LOGW("diag_init: RegisterCallback rc=0x%08x", (unsigned)rc);
+	g_own_init = ri == 0;
 	g_inited = 1;
 	return WQ_OK;
 }
@@ -89,7 +94,9 @@ void diag_fini(void)
 		return;
 	if (g_cb_id >= 0)
 		sceNetCtlInetUnregisterCallback(g_cb_id);
-	sceNetCtlTerm();
+	if (g_own_init)
+		sceNetCtlTerm();
+	g_own_init = 0;
 	g_inited = 0;
 }
 

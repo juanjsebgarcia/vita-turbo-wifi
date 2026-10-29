@@ -4,7 +4,7 @@
  *
  * Surface 1 (this file): a small TCP listener that accepts newline-terminated
  * text commands and writes back a text reply, exactly like vitacompanion's
- * command channel. Default port 1339 (vitacompanion uses 1338/1339).
+ * command channel. Default port 1339 (vitacompanion uses 1337 for FTP and 1338).
  *
  * Surface 2 (settings_entry.c): the same wq_dispatch_exec() core, so the two
  * surfaces never diverge.
