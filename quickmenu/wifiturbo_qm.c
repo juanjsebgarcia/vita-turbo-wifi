@@ -54,19 +54,29 @@ static void show_profile(int prof)
 		QuickMenuRebornSetWidgetColor(k_prof_id[i], 1.0f, 1.0f, 1.0f, i == prof ? 1.0f : 0.45f);
 }
 
-/* The menu was just built: show the current state (it may have changed in
- * Settings or over the command port since the menu was last open). Runs as the
- * OnLoad of the last widget we register, when all of ours exist. */
+/* The menu is being built: show the current state (it may have changed in
+ * Settings or over the command port since the menu was last open).
+ *
+ * The check box can't be set directly: QuickMenuRebornSetCheckBoxState passes
+ * the state in the wrong argument and always unticks it. QuickMenuReborn's
+ * default recall sets it correctly from its saved-state file, so store the
+ * current value there before the box is built - this runs as the OnLoad of
+ * its parent plane, which is created first. */
+ONLOAD_HANDLER(on_keep_load)
+{
+	(void)id;
+	WqUiState st;
+	if (wqUiReadState(&st) >= 0)
+		QuickMenuRebornSaveCheckBoxState(ID_KEEP_BOX, st.keepwifi ? 1 : 0);
+}
+
+/* Runs as the OnLoad of the last widget we register, when all of ours exist. */
 ONLOAD_HANDLER(on_menu_open)
 {
 	(void)id;
 	WqUiState st;
-	if (wqUiReadState(&st) < 0)
-		return;
-	/* Takes the checked state itself (1 = ticked), not QuickMenuReborn's
-	 * CheckBoxState enum, whose CHECKBOX_ON is 0. */
-	QuickMenuRebornSetCheckBoxState(ID_KEEP_BOX, st.keepwifi ? 1 : 0);
-	show_profile(st.profile);
+	if (wqUiReadState(&st) >= 0)
+		show_profile(st.profile);
 }
 
 BUTTON_HANDLER(on_keep_toggle)
@@ -112,11 +122,13 @@ int module_start(SceSize argc, const void *args)
 
 	/* Keep Wi-Fi on: label left, check box right. */
 	container(ID_KEEP_PLANE, 80);
+	QuickMenuRebornAssignOnLoadHandler(on_keep_load, ID_KEEP_PLANE);
 	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, 500, 75, -255, wq_i18n(WT_I18N_ROW_KEEP));
 	QuickMenuRebornRegisterWidget(ID_KEEP_BOX, ID_KEEP_PLANE, check_box);
 	QuickMenuRebornSetWidgetSize(ID_KEEP_BOX, 48, 48, 0, 0);
 	QuickMenuRebornSetWidgetColor(ID_KEEP_BOX, 1, 1, 1, 1);
 	QuickMenuRebornSetWidgetPosition(ID_KEEP_BOX, 350, 0, 0, 0);
+	QuickMenuRebornAssignDefaultCheckBoxRecall(ID_KEEP_BOX);
 	QuickMenuRebornRegisterEventHanlder(ID_KEEP_BOX, QMR_BUTTON_RELEASE_ID, on_keep_toggle, NULL);
 
 	/* Power profile: a caption, then one button per profile. */
