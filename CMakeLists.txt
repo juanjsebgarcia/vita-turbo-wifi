@@ -155,3 +155,43 @@ vita_create_self(wifiturbo.suprx wifiturbo
 # The Settings-app hooks (settings_app/wifiturbo_settings.c) are compiled INTO
 # wifiturbo.suprx above - the one suprx is listed under both *main and *NPXS10015
 # in config.txt, and module_start branches per process. No separate module.
+
+# --------------------------------------------------------------------------
+# Optional quick-menu plugin: wifiturbo_qm.suprx (a QuickMenuReborn client)
+# --------------------------------------------------------------------------
+#
+# Dropped into ur0:QuickMenuReborn/ (not config.txt): QuickMenuReborn loads it
+# into SceShell and builds its rows each time the quick menu opens. The
+# QuickMenuReborn header and NID table are vendored under quickmenu/
+# quickmenureborn/ (MIT, see the LICENSE there); the link stub is generated
+# from that table here, not taken prebuilt.
+
+set(QMR_STUB_DIR ${CMAKE_BINARY_DIR}/qmr_stubs)
+add_custom_command(
+  OUTPUT ${QMR_STUB_DIR}/libQuickMenuReborn_stub.a
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${QMR_STUB_DIR}
+  COMMAND vita-libs-gen-2 -yml=${CMAKE_SOURCE_DIR}/quickmenu/quickmenureborn/QuickMenuReborn.yml -output=${QMR_STUB_DIR}
+  COMMAND make -s -C ${QMR_STUB_DIR}
+  DEPENDS ${CMAKE_SOURCE_DIR}/quickmenu/quickmenureborn/QuickMenuReborn.yml
+  COMMENT "Generating the QuickMenuReborn link stub")
+add_custom_target(qmr-stubs DEPENDS ${QMR_STUB_DIR}/libQuickMenuReborn_stub.a)
+
+add_executable(wifiturbo_qm
+  quickmenu/wifiturbo_qm.c
+  settings_app/wifiturbo_i18n.c       # the same localised strings as Settings
+)
+add_dependencies(wifiturbo_qm wifiturbo-stubs qmr-stubs)
+target_include_directories(wifiturbo_qm PRIVATE ${CMAKE_SOURCE_DIR}/quickmenu)
+target_link_libraries(wifiturbo_qm
+  # STRONG: no kernel module or no QuickMenuReborn -> the plugin does not load.
+  ${CMAKE_BINARY_DIR}/libwifiturbo_kernel_stub.a
+  ${QMR_STUB_DIR}/libQuickMenuReborn_stub.a
+  SceRegistryMgr_stub_weak      # system language (wifiturbo_i18n.c)
+  SceAppUtil_stub_weak
+)
+target_link_options(wifiturbo_qm PRIVATE -nostartfiles)
+target_compile_options(wifiturbo_qm PRIVATE -Os)
+
+vita_create_self(wifiturbo_qm.suprx wifiturbo_qm
+  CONFIG ${CMAKE_SOURCE_DIR}/quickmenu/wifiturbo_qm.yml
+  UNSAFE)

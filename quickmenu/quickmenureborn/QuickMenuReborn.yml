@@ -1,0 +1,39 @@
+modules:
+  QuickMenuReborn:
+    libraries:
+      QuickMenuReborn:
+        nid: 0x6642F554
+        functions:
+          QuickMenuRebornMakeWidgetVector4: 0x517E135B
+          QuickMenuRebornMakeWidgetColor: 0x05ECC074
+          QuickMenuRebornRegisterWidget: 0x77BD7806
+          QuickMenuRebornRegisterWidgetFromData: 0x93C05099
+          QuickMenuRebornUnregisterWidget: 0xAD586CDF
+          QuickMenuRebornRegisterEventHanlder: 0x0863AF23
+          QuickMenuRebornSeparator: 0x554D28CD
+          QuickMenuRebornRemoveSeparator: 0x7550C9BF
+          QuickMenuRebornSetWidgetSize: 0xB49B464C
+          QuickMenuRebornSetWidgetPosition: 0x979759AE
+          QuickMenuRebornSetWidgetColor: 0x72BF9D2A
+          QuickMenuRebornSetWidgetLabel: 0x2CD65CA6
+          QuickMenuRebornGetSlidebarValue: 0x460F702C
+          QuickMenuRebornGetCheckboxValue: 0x3DACB8A6
+          QuickMenuRebornAssignRecallHandler: 0x88A838AB
+          QuickMenuRebornAssignSaveHandler: 0x67D83A20
+          QuickMenuRebornAssignOnLoadHandler: 0x3DF0A41F
+          QuickMenuRebornAssignDefaultCheckBoxSave: 0xF9A7F16C
+          QuickMenuRebornAssignDefaultCheckBoxRecall: 0xA29C7517
+          QuickMenuRebornAssignDefaultSliderSave: 0x34A7D5DB
+          QuickMenuRebornAssignDefaultSliderRecall: 0x9439EAF6
+          QuickMenuRebornSetCheckBoxState: 0xB8AEECEB
+          QuickMenuRebornSaveCheckBoxState: 0x7C987BD7
+          QuickMenuRebornSaveSlidebarValue: 0x3FCE9D1B
+          QuickMenuRebornSetSlidebarValue: 0x1CBDF817
+          QuickMenuRebornRegisterTexture: 0x474BBCDF
+          QuickMenuRebornUnregisterTexture: 0x7F595FCA
+          QuickMenuRebornSetWidgetTexture: 0x8475801A
+          QuickMenuRebornSetWidgetTextureBase: 0x80E62DC3
+          QuickMenuRebornCloseMenu: 0xCD66AED8
+          QuickMenuRebornRegisterWidgetFromStyle: 0xC236CE22
+          QuickMenuRebornRegisterWidgetFromStyleHash: 0x7538EB34
+          QuickMenuRebornAssignOnDeleteHandler: 0x3F667364
