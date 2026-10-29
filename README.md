@@ -17,9 +17,8 @@ A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60 to 3.7
 > [v0.2.1-alpha](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/tag/v0.2.1-alpha),
 > not yet tested on a console.
 > Other firmware versions are not supported: don't install it there.
-> **v0.3.1-alpha** adds the experimental
-> [Wi-Fi receive buffer](#wi-fi-receive-buffer-experimental) option. If
-> something doesn't work, please
+> **v0.4.0** adds [quick menu toggles](#quick-menu-toggles-optional) for
+> *Keep Wi-Fi on* and the power profile. If something doesn't work, please
 > [open an issue](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues)
 > with your logs.
 
@@ -103,6 +102,9 @@ buffer drops packets, and TCP slows down after every loss.
   driver. It shows on the Home screen, in Settings and in the quick menu
   (press the PS button in a game); turn on *In-game HUD* to keep it over games
   too.
+- 🎛️ **Quick menu toggles** (optional). *Keep Wi-Fi on* and the power profile
+  in the PS button quick menu, to switch mid-game. See
+  [Quick menu toggles](#quick-menu-toggles-optional).
 - 🧭 **Smart Mesh Roaming**. For mesh and multi-AP setups:
   on a weak signal it rescans every channel and joins the strongest access
   point of the same network.
@@ -394,6 +396,28 @@ lines from `config.txt`, reboot, then delete the two files and
 **If anything goes wrong:** hold **L** while the Vita boots to skip all
 plugins, then remove the lines from `config.txt`.
 
+### Quick menu toggles (optional)
+
+Adds *Keep Wi-Fi on* and the power profile to the PS button quick menu, so you
+can switch them in the middle of a game. It is a separate, optional file that
+needs [QuickMenuReborn](https://github.com/Ibrahim778/QuickMenuReborn), the
+community library other plugins use for their quick-menu rows.
+
+1. Install QuickMenuReborn if you don't have it yet: copy
+   `QuickMenuReborn.suprx` to `ur0:tai/` and add it under `*main` in your
+   config file, then copy `qmr_plugin.rco` to `ur0:QuickMenuReborn/`.
+2. Copy `wifiturbo_qm.suprx` from the release to `ux0:QuickMenuReborn/` if
+   that folder exists, otherwise to `ur0:QuickMenuReborn/`. It doesn't go in
+   `config.txt`: QuickMenuReborn loads it.
+3. Reboot, wait a few seconds on the Home screen, then press the PS button.
+
+The rows show the current setting each time the menu opens and change it the
+same way the Settings page does. Changing the power profile reconnects Wi-Fi
+for a few seconds. To remove them, delete `wifiturbo_qm.suprx`.
+
+> Another plugin's uninstaller may remove QuickMenuReborn along with its own
+> files; if the rows disappear, reinstall QuickMenuReborn.
+
 ## Build
 
 ```sh
@@ -456,8 +480,10 @@ your network name and access point MAC addresses first.
 Built on [taiHEN](https://github.com/yifanlu/taiHEN),
 [VitaSDK](https://vitasdk.org) and
 [vitacompanion](https://github.com/devnoname120/vitacompanion)
-([my fork](https://github.com/juanjsebgarcia/vitacompanion)). Thanks to
-the PS Vita homebrew community.
+([my fork](https://github.com/juanjsebgarcia/vitacompanion)). The quick menu
+rows use [QuickMenuReborn](https://github.com/Ibrahim778/QuickMenuReborn) by
+Ibrahim (MIT; its API header is included under `quickmenu/quickmenureborn/`).
+Thanks to the PS Vita homebrew community.
 
 ## License
 
