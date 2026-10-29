@@ -15,6 +15,7 @@
  */
 #include <psp2/kernel/modulemgr.h>
 #include <psp2/types.h>
+#include <string.h>
 
 #include "qmr.h"
 
@@ -65,21 +66,30 @@ static const char *prefixed(char *buf, int cap, int row)
 	return buf;
 }
 
-/* Labels in the current system language, re-read each time the menu opens so
- * a language change shows without a reboot. QuickMenuReborn builds each widget
- * from its stored label, so this works for rows not built yet. */
-static void set_labels(void)
+/* Labels in the current system language, set as each row is built so a
+ * language change shows without a reboot. Only from a row's own OnLoad: while
+ * the menu is open QuickMenuReborn applies a label to the live widget at once,
+ * so a row that isn't built yet must not be touched. */
+static const char *label_for(const char *id, char *buf, int cap)
 {
-	char label[128];   /* QuickMenuReborn copies each label */
-	QuickMenuRebornSetWidgetLabel(ID_KEEP_TEXT, prefixed(label, sizeof(label), WT_I18N_ROW_KEEP));
-	QuickMenuRebornSetWidgetLabel(ID_PROF_TEXT, wq_i18n(WT_I18N_ROW_POWER));
+	if (!strcmp(id, ID_KEEP_TEXT))
+		return prefixed(buf, cap, WT_I18N_ROW_KEEP);
+	if (!strcmp(id, ID_PROF_TEXT))
+		return wq_i18n(WT_I18N_ROW_POWER);
 	for (int i = 0; i < 3; i++)
-		QuickMenuRebornSetWidgetLabel(k_prof_id[i], wq_i18n(k_prof_text[i]));
+		if (!strcmp(id, k_prof_id[i]))
+			return wq_i18n(k_prof_text[i]);
+	return "";
 }
 
-/* The menu is being built: refresh the labels and show the current state (it
- * may have changed in Settings or over the command port since the menu was
- * last open).
+static void on_label_load(const char *id)
+{
+	char buf[128];   /* QuickMenuReborn copies each label */
+	QuickMenuRebornSetWidgetLabel(id, label_for(id, buf, sizeof(buf)));
+}
+
+/* The menu is being built: show the current state (it may have changed in
+ * Settings or over the command port since the menu was last open).
  *
  * The check box can't be set directly: QuickMenuRebornSetCheckBoxState passes
  * the state in the wrong argument and always unticks it. QuickMenuReborn's
@@ -89,7 +99,6 @@ static void set_labels(void)
 static void on_keep_load(const char *id)
 {
 	(void)id;
-	set_labels();
 	WqUiState st;
 	if (wqUiReadState(&st) >= 0)
 		QuickMenuRebornSaveCheckBoxState(ID_KEEP_BOX, st.keepwifi ? 1 : 0);
@@ -98,7 +107,7 @@ static void on_keep_load(const char *id)
 /* Runs as the OnLoad of the last widget we register, when all of ours exist. */
 static void on_menu_open(const char *id)
 {
-	(void)id;
+	on_label_load(id);
 	WqUiState st;
 	if (wqUiReadState(&st) >= 0)
 		show_profile(st.profile);
@@ -119,13 +128,13 @@ static void on_profile(const char *id, SceInt32 hash, SceInt32 event, void *user
 	show_profile(prof);             /* the published state follows within 1 s */
 }
 
-static void text_row(const char *id, const char *parent, float w, float h, float x, const char *label)
+static void text_row(const char *id, const char *parent, float w, float h, float x)
 {
 	QuickMenuRebornRegisterWidget(id, parent, QMR_TEXT);
 	QuickMenuRebornSetWidgetSize(id, w, h, 0, 0);
 	QuickMenuRebornSetWidgetColor(id, 1, 1, 1, 1);
 	QuickMenuRebornSetWidgetPosition(id, x, 0, 0, 0);
-	QuickMenuRebornSetWidgetLabel(id, label);
+	QuickMenuRebornAssignOnLoadHandler(on_label_load, id);
 }
 
 static void container(const char *id, float h)
@@ -148,7 +157,7 @@ int module_start(SceSize argc, const void *args)
 	 * centres text in its box, so the box is shifted left of the check box. */
 	container(ID_KEEP_PLANE, 80);
 	QuickMenuRebornAssignOnLoadHandler(on_keep_load, ID_KEEP_PLANE);
-	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, 640, 75, -185, "");
+	text_row(ID_KEEP_TEXT, ID_KEEP_PLANE, 640, 75, -185);
 	QuickMenuRebornRegisterWidget(ID_KEEP_BOX, ID_KEEP_PLANE, QMR_CHECK_BOX);
 	QuickMenuRebornSetWidgetSize(ID_KEEP_BOX, 48, 48, 0, 0);
 	QuickMenuRebornSetWidgetColor(ID_KEEP_BOX, 1, 1, 1, 1);
@@ -157,15 +166,15 @@ int module_start(SceSize argc, const void *args)
 	QuickMenuRebornRegisterEventHanlder(ID_KEEP_BOX, QMR_EVENT_RELEASE, on_keep_toggle, NULL);
 
 	/* Power profile: a centred caption, then one button per profile. */
-	text_row(ID_PROF_TEXT, NULL, QMR_ROW_WIDTH, 50, 0, "");
+	text_row(ID_PROF_TEXT, NULL, QMR_ROW_WIDTH, 50, 0);
 	container(ID_PROF_PLANE, PROF_BUTTON_H + 30);
 	for (int i = 0; i < 3; i++) {
 		QuickMenuRebornRegisterWidget(k_prof_id[i], ID_PROF_PLANE, QMR_BUTTON);
 		QuickMenuRebornSetWidgetSize(k_prof_id[i], PROF_BUTTON_W, PROF_BUTTON_H, 0, 0);
 		QuickMenuRebornSetWidgetPosition(k_prof_id[i], (i - 1) * PROF_BUTTON_GAP, 0, 0, 0);
 		QuickMenuRebornRegisterEventHanlder(k_prof_id[i], QMR_EVENT_RELEASE, on_profile, (void *)i);
+		QuickMenuRebornAssignOnLoadHandler(on_label_load, k_prof_id[i]);
 	}
-	set_labels();
 	show_profile(-1);
 	QuickMenuRebornAssignOnLoadHandler(on_menu_open, k_prof_id[2]);
 
