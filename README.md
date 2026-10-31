@@ -57,7 +57,7 @@ straight into RAM on the Vita (no memory card in the path). Wake-up latency is
 two runs of 30 pings sent 2 s apart, which gives the radio time to doze; that's the
 situation where power save hurts. See [Measuring it yourself](#measuring-it-yourself).
 
-### With the Wi-Fi receive buffer (v0.3.1-alpha)
+### With the Wi-Fi receive buffer
 
 Each row compares two setups in the same session, alternating between them;
 compare within a row, not across rows (signal strength differed between
