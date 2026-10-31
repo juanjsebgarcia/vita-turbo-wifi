@@ -6,7 +6,7 @@
  * rebuilds the widgets registered here each time the quick menu opens.
  *
  * Rows: "Keep Wi-Fi on" (check box) and the power profile (three buttons, the
- * active one lit). State is read with wqUiReadState and changed with
+ * active one lit). State is read with wqUiReadStateEx and changed with
  * wqUiSubmit - the same SceWifiTurbo mailbox the Settings page uses - so a
  * change here is applied, saved and kept exactly like one made in Settings.
  *
@@ -112,7 +112,7 @@ static void on_keep_load(const char *id)
 {
 	(void)id;
 	WqUiState st;
-	if (wqUiReadState(&st) >= 0)
+	if (wqUiReadStateEx(&st, sizeof(st)) >= 0)
 		QuickMenuRebornSaveCheckBoxState(ID_KEEP_BOX, st.keepwifi ? 1 : 0);
 }
 
@@ -121,7 +121,7 @@ static void on_menu_open(const char *id)
 {
 	on_label_load(id);
 	WqUiState st;
-	if (wqUiReadState(&st) >= 0)
+	if (wqUiReadStateEx(&st, sizeof(st)) >= 0)
 		show_profile(st.profile);
 }
 

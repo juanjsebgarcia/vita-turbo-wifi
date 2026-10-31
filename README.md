@@ -406,9 +406,10 @@ width.
 listed under `*NPXS10015` in the config file taiHEN actually reads
 (`ux0:tai/config.txt` if it exists, see step 3), then reboot.
 
-**To update:** replace both files and reboot. **To uninstall:** remove the
-lines from `config.txt`, reboot, then delete the two files and
-`ur0:data/wifiturbo/`.
+**To update:** replace both files, and `wifiturbo_qm.suprx` in your
+`QuickMenuReborn` folder if you use the quick menu toggles, then reboot.
+**To uninstall:** remove the lines from `config.txt`, reboot, then delete the
+two files (and `wifiturbo_qm.suprx`, if installed) and `ur0:data/wifiturbo/`.
 
 **If anything goes wrong:** hold **L** while the Vita boots to skip all
 plugins, then remove the lines from `config.txt`.
