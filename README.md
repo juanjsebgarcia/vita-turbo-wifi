@@ -168,7 +168,7 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 | Option | What it does | Default |
 |---|---|---|
 | **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off on its timer, but the Vita stays awake behind it; a single press of the power button is what puts it to sleep. While charging, standby is allowed so the battery reaches 100%. | On |
-| **Wi-Fi HUD overlay** | *Off*, *Compact* (one line: network, signal, channel) or *Extended* (adds link width, SNR, access point, profile, last error and, in *Custom* MAC address mode, the address in use). | Off |
+| **Wi-Fi HUD overlay** | *Off*, *Compact* (one line: network, signal, channel) or *Extended* (adds link width, SNR, access point, profile and, in *Custom* MAC address mode, the address in use). | Off |
 | **HUD position** | Which corner of the screen the HUD sits in. | Top left |
 | **In-game HUD** | Also shows the HUD over games and apps. When off, it shows only on the Home screen, in Settings and in the quick menu (press the PS button). | Off |
 | **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up. | On |
@@ -179,7 +179,7 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 | **MAC address** | *Default* (the Vita's own) or *Custom* (experimental, below). Choosing *Custom* makes a new random address. | Default |
 | **Custom MAC address** | Type an address (12 hex digits, colons optional). Typing one switches to *Custom*. Greyed out in *Default*. | |
 | **Randomize MAC address** | A new random address that keeps the maker half of the Vita's own. Greyed out in *Default*. | |
-| **Current MAC address** | The address in use, for reference. | |
+| **Current MAC address** | The address in use, for reference; marked *not applied* if the custom one didn't take. | |
 | **Developer mode (remote control)** | Opens the remote-control port 1339 on your network, for scripting and testing (below). | Off |
 
 ### Wi-Fi receive buffer (experimental)
