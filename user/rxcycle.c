@@ -308,22 +308,6 @@ int rxcycle_reboot(void)
 	return wqForceReboot();
 }
 
-static int reboot_thread(SceSize args, void *argp)
-{
-	sceKernelDelayThread(RXC_REPLY_US);
-	rxcycle_reboot();
-	return sceKernelExitDeleteThread(0);
-}
-
-int rxcycle_reboot_async(void)
-{
-	SceUID t = sceKernelCreateThread("WqReboot", reboot_thread, 0x40, 0x2000, 0, 0, NULL);
-	if (t < 0)
-		return WQ_ERR_NOT_READY;
-	sceKernelStartThread(t, 0, NULL);
-	return WQ_OK;
-}
-
 int rxcycle_last_powered_down(void)
 {
 	return g_last_pdown;

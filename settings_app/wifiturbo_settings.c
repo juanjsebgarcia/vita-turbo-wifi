@@ -16,6 +16,7 @@
 #include <psp2/kernel/modulemgr.h>
 #include <psp2/kernel/processmgr.h>   /* sceKernelGetProcessTimeWide (state re-read) */
 #include <taihen.h>
+#include <string.h>                   /* memset (MAC status read) */
 
 #include "../include/wifiturbo_kernel_api.h"   /* WqUiState, wqUi* syscalls     */
 #include "../user/log.h"                       /* WQ_LOG* (shared log file)     */
@@ -339,13 +340,24 @@ static void wt_mac_text(int w0, int w1, char *out, int cap)
 	out[n] = 0;
 }
 
-/* The address in use (or about to be): the custom one in Custom, else the
- * console's own. */
+/* The address in use now: the driver's copy, which only changes once the chip
+ * has confirmed a SET. Before the driver was ever reached this boot (no hooks:
+ * nothing was set), the console's own. Not the saved choice: a custom address
+ * that has not been applied must not show as the one in use. */
 static void wt_mac_current(char *out, int cap)
 {
+	WqMacStatus st;
+	memset(&st, 0, sizeof(st));
 	wt_seed();
-	if (g_ui.macmode == 1) wt_mac_text(g_ui.mac0, g_ui.mac1, out, cap);
-	else                   wt_mac_text(g_ui.fmac0, g_ui.fmac1, out, cap);
+	wqMacAddr(WQ_MAC_OP_STATUS, 0, 0, &st);     /* reads only: no hooks, no driver call */
+	int have = st.ctx_seen && (st.drv[0] | st.drv[1] | st.drv[2] | st.drv[3] | st.drv[4] | st.drv[5]);
+	if (have) {
+		int w0 = st.drv[0] | st.drv[1] << 8 | st.drv[2] << 16 | (int)((unsigned)st.drv[3] << 24);
+		int w1 = st.drv[4] | st.drv[5] << 8;
+		wt_mac_text(w0, w1, out, cap);
+	} else {
+		wt_mac_text(g_ui.fmac0, g_ui.fmac1, out, cap);
+	}
 }
 
 /* Rebuild the address rows so they show the address in use now: a row reads
