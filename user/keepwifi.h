@@ -33,6 +33,14 @@ int  keepwifi_roam_precheck(void);
 int  keepwifi_roam_busy(void);           /* 1 while a roam is queued/in flight */
 const char *keepwifi_roam_last(void);    /* one-line result of the last roam   */
 
+/* Hold the reconnect watcher off (counted: each 1 needs a 0), while a MAC
+ * address change has the link down on purpose. */
+void keepwifi_hold_reconnect(int on);
+
+/* 1 from a power-button press until the resume: the Vita is about to sleep,
+ * or sleeping. Nothing should start a driver call then. */
+int  keepwifi_power_busy(void);
+
 /* Self-contained test: netdown, then IcmConnect alone; logs PASS/FAIL to the
  * log file and falls back to the proven rejoin on FAIL. */
 void keepwifi_icm_test(void);

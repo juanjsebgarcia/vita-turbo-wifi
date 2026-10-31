@@ -13,17 +13,33 @@
  */
 #include <psp2kern/kernel/sysmem.h>    /* ksceKernelMemcpy{User,Kernel}         */
 #include <psp2kern/kernel/sysclib.h>   /* memcpy/memset                         */
+#include <psp2kern/kernel/threadmgr.h> /* the submit mutex                      */
 
 #include "../include/wifiturbo.h"
 #include "../include/wifiturbo_kernel_api.h"   /* WQ_UI_CMD_MAX, WqUiState      */
 
-/* Single-producer (NPXS10015) / single-consumer (SceShell) command ring, so a
- * burst of Settings toggles in one pump window isn't collapsed to the last one
- * (that lost every change but the final toggle). */
+/* Command ring, so a burst of Settings toggles in one pump window isn't
+ * collapsed to the last one (that lost every change but the final toggle).
+ * Two producers (the Settings app and the quick menu in SceShell), one
+ * consumer (the SceShell pump): submits are serialised by g_submit_mtx. */
 #define WQ_UI_RING 16
 static char              g_ring[WQ_UI_RING][WQ_UI_CMD_MAX];
 static volatile unsigned g_head, g_tail;
 static WqUiState         g_state;
+static SceUID            g_submit_mtx = -1;
+
+void uibridge_init(void)
+{
+	g_submit_mtx = ksceKernelCreateMutex("WqUiSubmitMtx", 0, 0, NULL);
+}
+
+void uibridge_fini(void)
+{
+	if (g_submit_mtx >= 0) {
+		ksceKernelDeleteMutex(g_submit_mtx);
+		g_submit_mtx = -1;
+	}
+}
 
 /* NPXS10015 side: enqueue one command (caller passes a WQ_UI_CMD_MAX user buffer). */
 int wqUiSubmit(const char *line)
@@ -32,12 +48,19 @@ int wqUiSubmit(const char *line)
 	if (!line || ksceKernelMemcpyUserToKernel(k, line, sizeof(k)) < 0)
 		return WQ_ERR_ARG;
 	k[WQ_UI_CMD_MAX - 1] = 0;
+	unsigned to = 1000 * 1000;
+	if (g_submit_mtx < 0 || ksceKernelLockMutex(g_submit_mtx, 1, &to) < 0)
+		return WQ_ERR_BUSY;
+	int r = WQ_OK;
 	unsigned h = g_head;
-	if (h - g_tail >= WQ_UI_RING)
-		return WQ_ERR_NOT_READY;              /* ring full - drop */
-	memcpy(g_ring[h % WQ_UI_RING], k, WQ_UI_CMD_MAX);
-	g_head = h + 1;
-	return WQ_OK;
+	if (h - g_tail >= WQ_UI_RING) {
+		r = WQ_ERR_NOT_READY;                 /* ring full - drop */
+	} else {
+		memcpy(g_ring[h % WQ_UI_RING], k, WQ_UI_CMD_MAX);
+		g_head = h + 1;
+	}
+	ksceKernelUnlockMutex(g_submit_mtx, 1);
+	return r;
 }
 
 /* NPXS10015 side: read the state the resident core last published. */

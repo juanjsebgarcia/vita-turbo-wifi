@@ -1,6 +1,13 @@
 /*
  * keepwifi.c - hold off auto-standby so Wi-Fi stays up (see keepwifi.h).
  *
+ * Two threads. The power thread owns the standby hold, the ScePower callback
+ * and the sleep request, and never calls into the network service, so a hung
+ * netctl cannot stop the power button sleeping the Vita. The network thread
+ * runs everything that does (keep-alive, reconnect, roaming, the Settings
+ * mailbox) and ticks a heartbeat; if that stops for WQ_NET_STALL_S, the power
+ * thread logs it and releases the standby hold until it moves again.
+ *
  * A 1 Hz sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND) keeps
  * the auto-standby timer from ever expiring, and leaves the screen's dim/off
  * timers alone. No power lock: the tick alone is enough. While ticking, a
@@ -22,6 +29,7 @@
 #include "settings_entry.h"   /* wq_settings_pump - driven off this tick       */
 #include "diag.h"             /* diag_sample - netctl connection state         */
 #include "advanced.h"         /* wq_adv_scan_read - roam pre-check scan        */
+#include "rxcycle.h"          /* rxcycle_phase - the radio is off on purpose   */
 #include "log.h"
 #include "../include/wifiturbo.h"
 #include "../include/wifiturbo_kernel_api.h"  /* wqRoamAssist*          */
@@ -54,6 +62,17 @@ static int user_wants_wifi(void)
 
 /* Seconds spent continuously disconnected (reset on connect / unknown state). */
 static int g_disc_ticks;
+
+/* Held by a MAC address change (user/macaddr.c) while the link is down on purpose. */
+static volatile int g_recon_hold;
+
+void keepwifi_hold_reconnect(int on)
+{
+	g_recon_hold += on ? 1 : -1;
+	if (g_recon_hold < 0)
+		g_recon_hold = 0;
+	g_disc_ticks = 0;
+}
 
 /* Log every netctl state transition, so a reconnect lever's effect is visible
  * (0 disconnected, 1 connecting, 2 finalizing/IP, 3 connected; -1 unknown). */
@@ -439,6 +458,14 @@ static void reconnect_watch(void)
 		g_disc_ticks = 0;               /* state unknown - do nothing           */
 		return;
 	}
+	/* A radio power-cycle (user/rxcycle.c) has the radio off on purpose, or is
+	 * rebooting; a MAC address change has the link down on purpose. Turning
+	 * the radio back on or rejoining under either breaks it. */
+	int ph = rxcycle_phase();
+	if (g_recon_hold || ph == 1 || ph == 3) {
+		g_disc_ticks = 0;
+		return;
+	}
 	if (s.netctl_state != WQ_NETCTL_DISCONNECTED) {
 		g_disc_ticks = 0;
 		return;                         /* connected, or a connect in progress   */
@@ -471,7 +498,10 @@ static void reconnect_watch(void)
 	}
 }
 
-static SceUID       g_thid = -1;
+static SceUID       g_thid = -1;      /* power thread                          */
+static SceUID       g_net_thid = -1;  /* network thread                        */
+static volatile unsigned g_net_beat;  /* network thread loops                  */
+static volatile int g_net_stalled;    /* heartbeat stopped: standby hold off   */
 static volatile int g_enabled = 1;   /* default ON - the user wants Wi-Fi kept up */
 static volatile int g_autorecon = 1;  /* "Auto-reconnect on drop" - default ON        */
 static volatile int g_run     = 0;
@@ -488,6 +518,11 @@ static volatile int g_run     = 0;
 static volatile int g_sleep_req;     /* power button pressed, sleep pending       */
 static volatile int g_suspending;    /* SYSTEM_SUSPEND seen, not yet resumed      */
 static int          g_sleep_t;       /* seconds since the press                   */
+
+int keepwifi_power_busy(void)
+{
+	return g_sleep_req || g_suspending;
+}
 
 static int power_cb(int notify_id, int notify_count, int info, void *common)
 {
@@ -539,6 +574,8 @@ static int keepwifi_hold_suspend(void)
 {
 	if (!g_enabled || g_sleep_req)    /* power button pressed: let it sleep  */
 		return 0;
+	if (g_net_stalled)                /* network side hung: hold nothing     */
+		return 0;
 	if (scePowerIsPowerOnline() != 1)   /* on battery (or unknown) -> keep Wi-Fi up */
 		return 1;
 	/* On external power: hold only once the battery is full, so charging can
@@ -549,19 +586,13 @@ static int keepwifi_hold_suspend(void)
 	return 0;                           /* charging/topping up -> allow standby   */
 }
 
-static int keepwifi_thread(SceSize args, void *argp)
+#define WQ_NET_STALL_S  60      /* network thread silent this long = hung */
+
+/* Everything that calls into netctl/SceNet; any of it can block. */
+static int net_thread(SceSize args, void *argp)
 {
 	(void)args; (void)argp;
-	/* The callback runs on this thread, in sceKernelDelayThreadCB below. */
-	SceUID cb = sceKernelCreateCallback("WqPowerCb", 0, power_cb, NULL);
-	int r = cb < 0 ? cb : scePowerRegisterCallback(cb);
-	if (r < 0)
-		WQ_LOGE("keepwifi: power callback failed (0x%08x) - power button "
-		        "will not sleep the Vita while Keep Wi-Fi is on", (unsigned)r);
 	while (g_run) {
-		sleep_tick();
-		if (keepwifi_hold_suspend())      /* standby only: screen may still dim/turn off */
-			sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
 		if (g_icmtest) {
 			icm_test_tick();     /* owns reconnects while the test runs         */
 		} else if (g_roam_t > 0) {
@@ -574,6 +605,43 @@ static int keepwifi_thread(SceSize args, void *argp)
 		}
 		smart_roam();         /* independent of keepwifi: roam on weak signal   */
 		wq_settings_pump();   /* drain the Settings mailbox + publish state     */
+		g_net_beat++;
+		sceKernelDelayThread(1000 * 1000);
+	}
+	return 0;
+}
+
+/* Power button, sleep and the standby hold only: nothing here waits on the
+ * network service. */
+static int keepwifi_thread(SceSize args, void *argp)
+{
+	(void)args; (void)argp;
+	/* The callback runs on this thread, in sceKernelDelayThreadCB below. */
+	SceUID cb = sceKernelCreateCallback("WqPowerCb", 0, power_cb, NULL);
+	int r = cb < 0 ? cb : scePowerRegisterCallback(cb);
+	if (r < 0)
+		WQ_LOGE("keepwifi: power callback failed (0x%08x) - power button "
+		        "will not sleep the Vita while Keep Wi-Fi is on", (unsigned)r);
+	unsigned last_beat = g_net_beat;
+	int still = 0;
+	while (g_run) {
+		sleep_tick();
+		/* Network thread heartbeat. Suspended time does not count: the
+		 * callback clears g_suspending on resume, and the check skips it. */
+		unsigned beat = g_net_beat;
+		if (beat != last_beat || g_suspending) {
+			if (g_net_stalled)
+				WQ_LOGW("keepwifi: network thread running again after %d s", still);
+			last_beat = beat;
+			still = 0;
+			g_net_stalled = 0;
+		} else if (++still == WQ_NET_STALL_S) {
+			g_net_stalled = 1;
+			WQ_LOGE("keepwifi: network thread stuck %d s (netctl not answering?) - "
+			        "standby hold released", still);
+		}
+		if (keepwifi_hold_suspend())      /* standby only: screen may still dim/turn off */
+			sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
 		sceKernelDelayThreadCB(1000 * 1000);
 	}
 	if (cb >= 0) {
@@ -590,12 +658,18 @@ int keepwifi_start(void)
 	g_run = 1;
 	g_thid = sceKernelCreateThread("WqKeepWifi", keepwifi_thread,
 	                               0x40, 0x4000, 0, 0, NULL);
-	if (g_thid < 0) {
+	g_net_thid = sceKernelCreateThread("WqKeepWifiNet", net_thread,
+	                                   0x40, 0x4000, 0, 0, NULL);
+	if (g_thid < 0 || g_net_thid < 0) {
 		g_run = 0;
-		WQ_LOGE("keepwifi: thread create failed (%d)", g_thid);
+		WQ_LOGE("keepwifi: thread create failed (%d/%d)", g_thid, g_net_thid);
+		if (g_thid >= 0)     sceKernelDeleteThread(g_thid);
+		if (g_net_thid >= 0) sceKernelDeleteThread(g_net_thid);
+		g_thid = g_net_thid = -1;
 		return WQ_ERR_NOT_READY;
 	}
 	sceKernelStartThread(g_thid, 0, NULL);
+	sceKernelStartThread(g_net_thid, 0, NULL);
 	WQ_LOGI("keepwifi: started (default %s)", g_enabled ? "ON" : "off");
 	return WQ_OK;
 }
@@ -608,6 +682,11 @@ void keepwifi_stop(void)
 	sceKernelWaitThreadEnd(g_thid, NULL, NULL);
 	sceKernelDeleteThread(g_thid);
 	g_thid = -1;
+	if (g_net_thid >= 0) {
+		sceKernelWaitThreadEnd(g_net_thid, NULL, NULL);
+		sceKernelDeleteThread(g_net_thid);
+		g_net_thid = -1;
+	}
 }
 
 void keepwifi_set_enabled(int on)

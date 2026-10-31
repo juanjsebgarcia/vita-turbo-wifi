@@ -17,4 +17,9 @@ void rxpreset_boot(int level);
 /* "stock" / "enhanced" / "maximum" -> 0 / 1 / 2, else -1. */
 int rxpreset_level(const char *name);
 
+/* The boot run: 0 not started, 1 deciding (waiting for the radio), 2 a
+ * radio power-cycle was started, 3 it ended without one (stock, a marker
+ * fallback, an unknown image, Wi-Fi off, or a refusal). */
+int rxpreset_boot_state(void);
+
 #endif /* WIFITURBO_RXPRESET_H */

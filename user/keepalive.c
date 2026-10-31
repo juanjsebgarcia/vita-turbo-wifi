@@ -33,7 +33,7 @@ static unsigned     g_last_gw;   /* for a one-line log when the gateway changes 
 
 /* Current default gateway as a network-order IPv4, or 0 if none (disconnected).
  * Dotted-quad parse mirrors dispatch.c's (no sceNetInetPton dependency). */
-static unsigned gateway_be(void)
+unsigned wq_gateway_be(void)
 {
 	SceNetCtlInfo info;
 	memset(&info, 0, sizeof(info));
@@ -52,7 +52,7 @@ static unsigned gateway_be(void)
 
 static void send_one(void)
 {
-	unsigned gw = gateway_be();
+	unsigned gw = wq_gateway_be();
 	if (!gw)
 		return;                           /* disconnected - nothing to do       */
 	if (gw != g_last_gw) {

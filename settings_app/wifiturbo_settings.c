@@ -387,6 +387,8 @@ static int wt_mac_refresh_current(void)
 	return ok;
 }
 
+/* wqUiSubmit copies WQ_UI_CMD_MAX bytes from its argument, so every command
+ * goes through a buffer that size, never a shorter string literal. */
 static void wt_submit(const char *a, const char *b)
 {
 	char line[WQ_UI_CMD_MAX];
@@ -409,7 +411,7 @@ static void wt_mac_new_random(void)
 	f[4] = (uint8_t)g_ui.fmac1; f[5] = (uint8_t)(g_ui.fmac1 >> 8);
 	if (!g_ui.fmac0 && !g_ui.fmac1) {      /* own address not known yet */
 		g_ui.macmode = 1;
-		wqUiSubmit("mac custom");
+		wt_submit("mac custom", NULL);
 		return;
 	}
 	wq_mac_random(m, f);
@@ -460,7 +462,7 @@ static int set_hook(const char *cat, const char *name, int v)
 			 * half kept), made here so the page can show it at once; Default
 			 * goes back to the console's own address. */
 			if (v) wt_mac_new_random();
-			else   wqUiSubmit("mac stock");
+			else   wt_submit("mac stock", NULL);
 			wt_mac_refresh();
 			return 0;
 		} else if (s_eqn(name,"hudpos",7)) {

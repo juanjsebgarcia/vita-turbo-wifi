@@ -43,6 +43,7 @@
 #include "keepwifi.h"
 #include "rxpreset.h"
 #include "macaddr.h"
+#include "rxcycle.h"   /* rxcycle_reboot_async ('reboot') */
 #include "netjoin.h"
 #include "settings_entry.h"
 #include "log.h"
@@ -182,6 +183,32 @@ static int do_selftest(char *out, int outcap)
 
 static void dispatch_set_devmode(int on);   /* Developer mode, see below */
 
+typedef struct { int secs; char line[WQ_UI_CMD_MAX]; } later_args;
+
+static int later_thread(SceSize args, void *argp)
+{
+	const later_args *l = (const later_args *)argp;   /* the thread's own copy */
+	char line[WQ_UI_CMD_MAX], rep[256];
+	memcpy(line, l->line, sizeof(line));
+	sceKernelDelayThread((SceUInt)l->secs * 1000 * 1000);
+	WQ_LOGI("later: running '%s'", line);
+	wq_dispatch_exec(line, rep, sizeof(rep));
+	WQ_LOGI("later: '%s' -> %s", line, rep);
+	return sceKernelExitDeleteThread(0);
+}
+
+static int later_start(int secs, const char *cmd)
+{
+	later_args l;
+	memset(&l, 0, sizeof(l));
+	l.secs = secs;
+	for (int i = 0; cmd[i] && i < WQ_UI_CMD_MAX - 1; i++) l.line[i] = cmd[i];
+	SceUID t = sceKernelCreateThread("WqLater", later_thread, 0x40, 0x3000, 0, 0, NULL);
+	if (t < 0 || sceKernelStartThread(t, sizeof(l), &l) < 0)   /* args are copied */
+		return WQ_ERR_NOT_READY;
+	return WQ_OK;
+}
+
 static int dispatch_exec_inner(const char *line, char *out, int outcap)
 {
 	char *p = out, *end = out + outcap;
@@ -196,7 +223,7 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 		    "rejoin|icm|icmtest|netdown|"
 		    "selftest|speedtest <ip> <port> [secs] [rcvbuf_kb]|udpsink <port> [secs]|"
 		    "log [dump]|log level <err|warn|info|debug|trace>|log clear|adv scan|"
-		    "mac status|probe|stock|custom|random|set <addr>|cycle");
+		    "mac status|probe|stock|custom|random|set <addr>|cycle|ui <command>|later <secs> <command>|reboot");
 		return WQ_OK;
 	}
 
@@ -442,10 +469,45 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 		return r;
 	}
 
-	/* EXPERIMENTAL: 'mac ...' - a chosen Wi-Fi MAC address (user/macaddr.c).
-	 * Not saved: a reboot comes back on the factory address. */
+	/* EXPERIMENTAL: 'mac ...' - a chosen Wi-Fi MAC address (user/macaddr.c). */
 	if ((a = tok_after(line, "mac")))
 		return wq_mac_cmd(a, out, outcap);
+
+	/* 'later <seconds> <command>': run <command> on its own thread after a
+	 * delay, so a test can land a change while Wi-Fi (and so :1339) is down,
+	 * e.g. inside a radio power-cycle. */
+	if ((a = tok_after(line, "later"))) {
+		int secs = 0;
+		while (*a >= '0' && *a <= '9') secs = secs * 10 + (*a++ - '0');
+		while (*a == ' ') a++;
+		if (!*a || secs > 600) {
+			put(p, end, "usage: later <seconds 0-600> <command>");
+			return WQ_ERR_ARG;
+		}
+		int r = later_start(secs, a);
+		put(p, end, r == WQ_OK ? "later: scheduled" : "later: could not start a thread");
+		return r;
+	}
+
+	/* 'reboot': SceShell's cold reset, 2 s later (the reply goes out first). */
+	if (str_eq(line, "reboot")) {
+		int r = rxcycle_reboot_async();
+		put(p, end, r == WQ_OK ? "reboot: in 2 s" : "reboot: could not start a thread");
+		return r;
+	}
+
+	/* 'ui <command>': queue <command> through the kernel mailbox exactly as
+	 * the Settings page does (drained by the keepwifi network thread), for
+	 * testing that path from :1339. */
+	if ((a = tok_after(line, "ui")) && *a) {
+		char b[WQ_UI_CMD_MAX];
+		int i = 0;
+		for (; a[i] && i < WQ_UI_CMD_MAX - 1; i++) b[i] = a[i];
+		while (i < WQ_UI_CMD_MAX) b[i++] = 0;
+		int r = wq_kret(wqUiSubmit(b));
+		p = put(p, end, r == WQ_OK ? "ui: queued" : "ui: mailbox full or busy");
+		return r;
+	}
 
 	if ((a = tok_after(line, "speedtest"))) {
 		char ip[40]; int i = 0;

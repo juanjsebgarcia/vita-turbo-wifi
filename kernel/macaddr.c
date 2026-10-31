@@ -23,8 +23,16 @@
  *
  * Hook bodies are plain loads/stores; nothing in them logs. The send helper
  * also carries every RSSI_INFO poll, so its non-0x4D path is one compare.
+ *
+ * Nothing is hooked until something asks for more than STATUS, so a console
+ * left on its own address never carries the hooks. LIVE and SET never call
+ * into the driver while the chip is off, inside the post-firmware init, or
+ * within WQ_MAC_SETTLE_MS after it (WQ_ERR_BUSY: the caller retries). The
+ * ops that touch the driver are serialised by one mutex.
  */
 #include <psp2kern/kernel/sysclib.h>   /* memset */
+#include <psp2kern/kernel/sysmem.h>    /* ksceKernelGetPaddr */
+#include <psp2kern/kernel/threadmgr.h> /* mutex, ksceKernelGetSystemTimeWide */
 #include <psp2kern/types.h>
 #include <taihen.h>
 
@@ -51,6 +59,8 @@
 #define CTL_BUF_LEN       0x18
 #define CTL_BUF_MAC       0x0c         /* wrapper: buf+0xc = address, +0x14 = 6   */
 
+#define MTX_TIMEOUT_US    (2 * 1000 * 1000)
+
 static const uint8_t k_send_sig[8] = { 0x2D, 0xE9, 0xF0, 0x47, 0x00, 0xF1, 0x2C, 0x08 };
 /* Both prologues below load the stack-guard address with a movw/movt pair
  * whose immediates the module loader fills in, so those bytes are compared
@@ -73,11 +83,16 @@ static volatile uintptr_t g_ctx;            /* driver ctx seen at the send helpe
 static volatile int       g_oneshot, g_oneshot_used;
 static uint8_t            g_oneshot_mac[6];
 static volatile uint32_t  g_powerups, g_sets;
+static volatile int       g_in_init;        /* inside the post-firmware init      */
+static volatile SceUInt64 g_powerup_t;      /* when the last init returned        */
+static SceUID             g_mtx = -1;
 
 static uint8_t  g_factory[6], g_live[6];
 static int      g_have_factory;
 static int32_t  g_last_rc;
 static uint32_t g_ctl_check = 1;
+static uint32_t g_chain = 1;                /* last walk's result (WALK/SET)      */
+static uint8_t  g_lladdr[6], g_descmac[6];  /* what that walk read                */
 
 /* Kernel heap blocks can sit low (the driver ctx is around 0x01f0xxxx), so
  * this only rules out NULL-page and unaligned values; the walk's back-pointer,
@@ -111,11 +126,20 @@ static void mac_cpy(volatile uint8_t *d, const volatile uint8_t *s)
 		d[i] = s[i];
 }
 
+/* [p, p+len) is mapped kernel memory: checked before every SceNetPs pointer
+ * is read, so a stale or foreign pointer fails the walk instead of faulting. */
+static int kmapped(uintptr_t p, uint32_t len)
+{
+	uintptr_t pa;
+	return kptr_ok(p) && ksceKernelGetPaddr((void *)p, &pa) >= 0 &&
+	       ksceKernelGetPaddr((void *)(p + len - 1), &pa) >= 0;
+}
+
 /* Walk ctx -> wlan0's link-level address, checking each step. Returns 0 and
  * the two address pointers, or the number of the step that failed. */
 static int netps_chain(uintptr_t ctx, uint8_t **lladdr_out, uint8_t **descmac_out)
 {
-	if (!kptr_ok(ctx))
+	if (!kmapped(ctx + CTX_DESC, DESC_CTX_BACK + 4))
 		return 1;
 	const volatile uint32_t *desc = (const volatile uint32_t *)(ctx + CTX_DESC);
 	if (desc[DESC_W_TYPE] != 2)
@@ -125,17 +149,18 @@ static int netps_chain(uintptr_t ctx, uint8_t **lladdr_out, uint8_t **descmac_ou
 		if (!wlanbt_seg_contains(0, desc[need[i]] & ~1u, 2))
 			return 3;
 	uintptr_t cont = desc[DESC_W_CONTAINER];
-	if (!kptr_ok(cont) || *(const volatile uint32_t *)cont != (uint32_t)(uintptr_t)desc)
+	if (!kmapped(cont, (CONT_W_LLADDR + 1) * 4) ||
+	    *(const volatile uint32_t *)cont != (uint32_t)(uintptr_t)desc)
 		return 4;
 	const volatile uint32_t *c = (const volatile uint32_t *)cont;
 	uintptr_t ifnet = c[CONT_W_IFNET];
-	if (!kptr_ok(ifnet) || *(const volatile uint32_t *)ifnet != (uint32_t)cont)
+	if (!kmapped(ifnet, IFNET_SDL + 4) || *(const volatile uint32_t *)ifnet != (uint32_t)cont)
 		return 5;
 	const volatile char *name = (const volatile char *)(ifnet + IFNET_NAME);
 	if (name[0] != 'w' || name[1] != 'l' || name[2] != 'a' || name[3] != 'n')
 		return 6;
 	uintptr_t sdl = *(const volatile uint32_t *)(ifnet + IFNET_SDL);
-	if (!kptr_ok(sdl))
+	if (!kmapped(sdl, 8 + 16 + 6))                  /* header, longest name, address */
 		return 7;
 	const volatile uint8_t *s = (const volatile uint8_t *)sdl;
 	if (s[6] != 6 || s[5] > 16)                     /* sdl_alen, sdl_nlen */
@@ -167,15 +192,30 @@ static int hook_send(int ctx, int node, unsigned cmd, int len)
 }
 
 /* Post-firmware init, run by the driver worker at every power-up with the
- * driver ctx in r0 (3.60 0x810087be: mov r0, r4 - the worker's ctx). Count
- * it, and learn the ctx here, before any command, so the SET can go out
- * before the first join. */
+ * driver ctx in r0 (3.60 0x810087be: mov r0, r4 - the worker's ctx). Learn
+ * the ctx here, before any command, so the SET can go out before the first
+ * join, and count the power-up once the init has returned. It takes one
+ * argument (3.60 and 3.71: only r0 is read, nothing above its own frame), so
+ * passing r1-r3 through is harmless. */
 static int hook_init(int a0, int a1, int a2, int a3)
 {
 	if (!g_ctx && kptr_ok((uintptr_t)a0))
 		g_ctx = (uintptr_t)a0;
+	g_in_init = 1;
+	int r = TAI_CONTINUE(int, g_init_ref, a0, a1, a2, a3);
+	g_powerup_t = ksceKernelGetSystemTimeWide();
 	g_powerups++;
-	return TAI_CONTINUE(int, g_init_ref, a0, a1, a2, a3);
+	g_in_init = 0;
+	return r;
+}
+
+/* 1 if the chip is on, initialised and settled, so a control call is safe. */
+static int chip_ready(void)
+{
+	unsigned pw;
+	if (g_in_init || wlanbt_power_word(&pw) != WQ_OK || (pw & 3) != 3)
+		return 0;
+	return ksceKernelGetSystemTimeWide() - g_powerup_t >= WQ_MAC_SETTLE_MS * 1000ull;
 }
 
 static int sig_ok(const volatile uint8_t *t, uint32_t off, const uint8_t *sig,
@@ -267,6 +307,8 @@ static int ctl_get_mac(uintptr_t ctx, const uint8_t *set)
 	ctl_fn fn = ctl_resolve(ctx);
 	if (!fn)
 		return WQ_ERR_RESOLVE;
+	if (!chip_ready())
+		return WQ_ERR_BUSY;
 	uint32_t buf[CTL_BUF_LEN / 4];
 	memset(buf, 0, sizeof(buf));
 	buf[1] = CTL_BUF_LEN;
@@ -292,6 +334,13 @@ static int op_set(uintptr_t ctx, const uint8_t *mac)
 		mac_cpy(g_factory, (const volatile uint8_t *)(ctx + CTX_MAC));
 		g_have_factory = 1;
 	}
+	/* Find wlan0 before the chip is touched, so a walk that fails leaves
+	 * every copy as it was rather than the chip and driver half changed. */
+	uint8_t *ll, *dm;
+	g_chain = (uint32_t)netps_chain(ctx, &ll, &dm);
+	if (g_chain != 0)
+		return WQ_ERR_RESOLVE;
+	uint32_t pu = g_powerups;
 	int r = ctl_get_mac(ctx, mac);
 	WQ_KLOGI("macaddr: SET %02x:%02x:%02x:%02x:%02x:%02x rc=0x%08x used=%d chip "
 	         "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4],
@@ -299,15 +348,32 @@ static int op_set(uintptr_t ctx, const uint8_t *mac)
 	         g_live[2], g_live[3], g_live[4], g_live[5]);
 	if (r != WQ_OK)
 		return r;
-	if (!g_oneshot_used || !mac_eq(g_live, mac))
+	if (g_powerups != pu || g_in_init)
+		return WQ_ERR_BUSY;               /* the chip restarted meanwhile: on its own address again */
+	/* rc 0 with no MAC_ADDRESS sent (seen ~1.5 s after a radio power-up,
+	 * while SceShell starts its scan): the chip was not touched, so it is
+	 * worth asking again shortly. */
+	if (!g_oneshot_used)
+		return WQ_ERR_BUSY;
+	if (!mac_eq(g_live, mac))
 		return WQ_ERR_CHIP;               /* the chip did not take it: change nothing else */
 	mac_cpy((volatile uint8_t *)(ctx + CTX_MAC), mac);
-	uint8_t *ll, *dm;
-	if (netps_chain(ctx, &ll, &dm) != 0)
-		return WQ_ERR_RESOLVE;
 	mac_cpy(ll, mac);
 	mac_cpy(dm, mac);
+	mac_cpy(g_lladdr, mac);
+	mac_cpy(g_descmac, mac);
 	return WQ_OK;
+}
+
+static void walk(uintptr_t ctx)
+{
+	uint8_t *ll, *dm;
+	ctl_resolve(ctx);
+	g_chain = (uint32_t)netps_chain(ctx, &ll, &dm);
+	if (g_chain == 0) {
+		mac_cpy(g_lladdr, ll);
+		mac_cpy(g_descmac, dm);
+	}
 }
 
 static void fill(WqMacStatus *o)
@@ -320,42 +386,51 @@ static void fill(WqMacStatus *o)
 	o->have_factory = g_have_factory;
 	mac_cpy(o->factory, g_factory);
 	mac_cpy(o->live, g_live);
+	/* wlan0 and the descriptor as the last WALK/SET found them: STATUS is
+	 * polled, and reads nothing outside the driver ctx. */
+	o->chain     = g_chain;
+	o->ctl_check = g_ctl_check;
+	mac_cpy(o->lladdr, g_lladdr);
+	mac_cpy(o->descmac, g_descmac);
 	uintptr_t ctx = g_ctx;
 	o->ctx_seen = ctx != 0;
-	o->chain = 1;
-	o->ctl_check = 1;
 	if (!ctx)
 		return;
 	mac_cpy(o->drv, (const volatile uint8_t *)(ctx + CTX_MAC));
 	if (!g_have_factory)
 		mac_cpy(o->factory, o->drv);     /* not modified yet, so this is it */
 	o->have_factory = 1;
-	ctl_resolve(ctx);
-	o->ctl_check = g_ctl_check;
-	uint8_t *ll, *dm;
-	o->chain = (uint32_t)netps_chain(ctx, &ll, &dm);
-	if (o->chain == 0) {
-		mac_cpy(o->lladdr, ll);
-		mac_cpy(o->descmac, dm);
-	}
 }
 
 int macaddr_op(int op, const uint8_t mac[6], WqMacStatus *out)
 {
-	int r = hooks_ensure();
-	if (r == WQ_OK) {
-		uintptr_t ctx = g_ctx;
-		switch (op) {
-		case WQ_MAC_OP_STATUS:
-			break;
-		case WQ_MAC_OP_LIVE:
-			r = ctx ? ctl_get_mac(ctx, NULL) : WQ_ERR_NOT_READY;
-			break;
-		case WQ_MAC_OP_SET:
-			r = ctx ? op_set(ctx, mac) : WQ_ERR_NOT_READY;
-			break;
-		default:
-			r = WQ_ERR_ARG;
+	int r = WQ_OK;
+	if (op != WQ_MAC_OP_STATUS) {
+		unsigned to = MTX_TIMEOUT_US;
+		if (g_mtx < 0 || ksceKernelLockMutex(g_mtx, 1, &to) < 0) {
+			r = WQ_ERR_BUSY;
+		} else {
+			r = hooks_ensure();
+			if (r == WQ_OK) {
+				uintptr_t ctx = g_ctx;
+				switch (op) {
+				case WQ_MAC_OP_HOOK:
+					break;
+				case WQ_MAC_OP_WALK:
+					if (ctx)
+						walk(ctx);
+					break;
+				case WQ_MAC_OP_LIVE:
+					r = ctx ? ctl_get_mac(ctx, NULL) : WQ_ERR_NOT_READY;
+					break;
+				case WQ_MAC_OP_SET:
+					r = ctx ? op_set(ctx, mac) : WQ_ERR_NOT_READY;
+					break;
+				default:
+					r = WQ_ERR_ARG;
+				}
+			}
+			ksceKernelUnlockMutex(g_mtx, 1);
 		}
 	}
 	if (out)
@@ -363,8 +438,15 @@ int macaddr_op(int op, const uint8_t mac[6], WqMacStatus *out)
 	return r;
 }
 
+void macaddr_init(void)
+{
+	g_mtx = ksceKernelCreateMutex("WqMacKMtx", 0, 0, NULL);
+}
+
 void macaddr_fini(void)
 {
+	if (g_mtx >= 0)
+		ksceKernelLockMutex(g_mtx, 1, NULL);   /* no op left inside the driver */
 	if (g_send_hook >= 0) {
 		taiHookReleaseForKernel(g_send_hook, g_send_ref);
 		g_send_hook = -1;
@@ -372,5 +454,10 @@ void macaddr_fini(void)
 	if (g_init_hook >= 0) {
 		taiHookReleaseForKernel(g_init_hook, g_init_ref);
 		g_init_hook = -1;
+	}
+	if (g_mtx >= 0) {
+		ksceKernelUnlockMutex(g_mtx, 1);
+		ksceKernelDeleteMutex(g_mtx);
+		g_mtx = -1;
 	}
 }

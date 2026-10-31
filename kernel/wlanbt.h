@@ -40,4 +40,8 @@ int wlanbt_text(uint32_t need, SceUID *modid, uintptr_t *text);
 /* 1 if [addr, addr+len) lies inside SceWlanBt segment `seg`, else 0. */
 int wlanbt_seg_contains(int seg, uintptr_t addr, uint32_t len);
 
+/* SceWlanBt's power word (seg1+0x4: bit0 chip powered, bit1 WLAN on, bit2 BT
+ * on) in *out. WQ_OK, or WQ_ERR_RESOLVE. */
+int wlanbt_power_word(unsigned *out);
+
 #endif /* WIFITURBO_WLANBT_H */

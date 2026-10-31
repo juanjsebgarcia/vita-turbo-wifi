@@ -11,6 +11,7 @@
 
 /* One WQ_MAC_OP_*; always fills *out. */
 int  macaddr_op(int op, const uint8_t mac[6], WqMacStatus *out);
+void macaddr_init(void);   /* module_start: the op mutex */
 void macaddr_fini(void);
 
 #endif /* WIFITURBO_MACADDR_H */
