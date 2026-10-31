@@ -25,7 +25,7 @@
  * also carries every RSSI_INFO poll, so its non-0x4D path is one compare.
  *
  * Nothing is hooked until something asks for more than STATUS, so a console
- * left on its own address never carries the hooks. LIVE and SET never call
+ * left on its own address never carries the hooks. SET never calls
  * into the driver while the chip is off, inside the post-firmware init, or
  * within WQ_MAC_SETTLE_MS after it (WQ_ERR_BUSY: the caller retries). The
  * ops that touch the driver are serialised by one mutex.
@@ -419,9 +419,6 @@ int macaddr_op(int op, const uint8_t mac[6], WqMacStatus *out)
 				case WQ_MAC_OP_WALK:
 					if (ctx)
 						walk(ctx);
-					break;
-				case WQ_MAC_OP_LIVE:
-					r = ctx ? ctl_get_mac(ctx, NULL) : WQ_ERR_NOT_READY;
 					break;
 				case WQ_MAC_OP_SET:
 					r = ctx ? op_set(ctx, mac) : WQ_ERR_NOT_READY;
