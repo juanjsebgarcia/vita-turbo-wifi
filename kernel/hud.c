@@ -202,8 +202,7 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 	if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
 	n++;
 
-	/* MAC address - Extended only, in Custom mode: the address in use, and
-	 * whether the custom one is it */
+	/* MAC address - Extended only, in Custom mode (see WqHudState.mac_custom) */
 	if (s->mac_custom) {
 		p = lines[n]; end = p + HUD_LINE_CHARS;
 		p = put_str(p, end, "MAC ");
@@ -211,10 +210,11 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 			p = put_hex2(p, end, s->mac[i]);
 			if (i < 5 && p < end - 1) *p++ = ':';
 		}
-		if (s->mac_custom == 2)
-			p = put_str(p, end, " (custom pending)");
-		else if (s->mac_custom == 3)
-			p = put_str(p, end, " (custom not applied)");
+		if (s->mac_custom == 2 || s->mac_custom == 3) {
+			p = put_str(p, end, " (");
+			p = put_str(p, end, hud_tr(s->lang, s->mac_custom == 2 ? HTR_PENDING : HTR_NOTAPPLIED));
+			p = put_str(p, end, ")");
+		}
 		*p = 0;
 		if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
 		n++;

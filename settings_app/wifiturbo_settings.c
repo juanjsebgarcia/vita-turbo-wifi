@@ -16,7 +16,6 @@
 #include <psp2/kernel/modulemgr.h>
 #include <psp2/kernel/processmgr.h>   /* sceKernelGetProcessTimeWide (state re-read) */
 #include <taihen.h>
-#include <string.h>                   /* memset (MAC status read) */
 
 #include "../include/wifiturbo_kernel_api.h"   /* WqUiState, wqUi* syscalls     */
 #include "../user/log.h"                       /* WQ_LOG* (shared log file)     */
@@ -102,7 +101,7 @@ static wt_u16 g_hintbuf[320];
  * system language (wifiturbo_i18n.{h,c}; English(US) fallback). Every visible
  * string - titles, list items and hints - carries an id and comes through here
  * via the GetText hook, so the whole sub-menu follows the system language. */
-static void wt_mac_current(char *out, int cap);
+static int wt_mac_current(char *out, int cap);
 
 static const wt_u16 *WT_TEXT(const char *id)
 {
@@ -157,11 +156,18 @@ static const wt_u16 *WT_TEXT(const char *id)
 	/* The read-only row's one item is the address in use: shown inline. */
 	if (s_eqn(id, "wt_i_maccur", 12)) {
 		char t[18];
-		wt_mac_current(t, sizeof(t));
+		int mark = wt_mac_current(t, sizeof(t));
+		const int cap = (int)(sizeof(g_hintbuf) / sizeof(g_hintbuf[0]));
 		int n = 0;
-		while (t[n] && n < (int)(sizeof(g_hintbuf) / sizeof(g_hintbuf[0])) - 1) {
+		while (t[n] && n < cap - 1) {
 			g_hintbuf[n] = (wt_u16)(unsigned char)t[n];
 			n++;
+		}
+		if (mark >= 0 && n < cap - 4) {          /* " (" mark ")" */
+			g_hintbuf[n++] = ' ';
+			g_hintbuf[n++] = '(';
+			n += wq_i18n_to_u16(wq_i18n(mark), g_hintbuf + n, cap - n - 1);
+			g_hintbuf[n++] = ')';
 		}
 		g_hintbuf[n] = 0;
 		return g_hintbuf;
@@ -340,24 +346,31 @@ static void wt_mac_text(int w0, int w1, char *out, int cap)
 	out[n] = 0;
 }
 
-/* The address in use now: the driver's copy, which only changes once the chip
- * has confirmed a SET. Before the driver was ever reached this boot (no hooks:
- * nothing was set), the console's own. Not the saved choice: a custom address
- * that has not been applied must not show as the one in use. */
-static void wt_mac_current(char *out, int cap)
+#define WT_MAC_RECENT_US  6000000ull   /* a change made here counts as pending this long */
+
+/* The Current MAC address row: the address the setting asks for (the custom
+ * one, or the console's own) if it is in use; the same with a "pending" mark
+ * while a change to it is under way (SceShell publishes that, and a change
+ * just made on this page counts too, before SceShell has seen it); else the
+ * address actually in use, marked "not applied". Returns the mark's i18n id,
+ * or -1 for none. */
+static int wt_mac_current(char *out, int cap)
 {
-	WqMacStatus st;
-	memset(&st, 0, sizeof(st));
 	wt_seed();
-	wqMacAddr(WQ_MAC_OP_STATUS, 0, 0, &st);     /* reads only: no hooks, no driver call */
-	int have = st.ctx_seen && (st.drv[0] | st.drv[1] | st.drv[2] | st.drv[3] | st.drv[4] | st.drv[5]);
-	if (have) {
-		int w0 = st.drv[0] | st.drv[1] << 8 | st.drv[2] << 16 | (int)((unsigned)st.drv[3] << 24);
-		int w1 = st.drv[4] | st.drv[5] << 8;
-		wt_mac_text(w0, w1, out, cap);
-	} else {
-		wt_mac_text(g_ui.fmac0, g_ui.fmac1, out, cap);
+	int want0 = g_ui.macmode == 1 ? g_ui.mac0 : g_ui.fmac0;
+	int want1 = g_ui.macmode == 1 ? g_ui.mac1 : g_ui.fmac1;
+	int known = g_ui.macuse0 || g_ui.macuse1;
+	if (!known || (g_ui.macuse0 == want0 && g_ui.macuse1 == want1)) {
+		wt_mac_text(want0, want1, out, cap);
+		return -1;
 	}
+	int recent = sceKernelGetProcessTimeWide() - g_set_t < WT_MAC_RECENT_US;
+	if (g_ui.macbusy || recent) {
+		wt_mac_text(want0, want1, out, cap);
+		return WT_I18N_MAC_PENDING;
+	}
+	wt_mac_text(g_ui.macuse0, g_ui.macuse1, out, cap);
+	return WT_I18N_MAC_NOTAPPLIED;
 }
 
 /* Rebuild the address rows so they show the address in use now: a row reads

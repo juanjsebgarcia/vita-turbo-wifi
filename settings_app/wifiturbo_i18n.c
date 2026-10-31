@@ -1176,6 +1176,52 @@ static const char *const g_tbl[WT_I18N_COUNT][WT_LANG_COUNT] = {
 	"Estendido",
 	"Extended",
 	"Genişletilmiş"
+},
+/* WT_I18N_MAC_PENDING - "pending" */
+{
+	"保留中",
+	"pending",
+	"en attente",
+	"pendiente",
+	"ausstehend",
+	"in attesa",
+	"bezig",
+	"pendente",
+	"ожидание",
+	"대기 중",
+	"等待中",
+	"等待中",
+	"odottaa",
+	"väntar",
+	"afventer",
+	"venter",
+	"oczekuje",
+	"pendente",
+	"pending",
+	"bekliyor"
+},
+/* WT_I18N_MAC_NOTAPPLIED - "not applied" */
+{
+	"未適用",
+	"not applied",
+	"non appliquée",
+	"no aplicada",
+	"nicht übernommen",
+	"non applicato",
+	"niet toegepast",
+	"não aplicado",
+	"не применён",
+	"적용 안 됨",
+	"未套用",
+	"未应用",
+	"ei käytössä",
+	"inte tillämpad",
+	"ikke anvendt",
+	"ikke brukt",
+	"nie zastosowano",
+	"não aplicado",
+	"not applied",
+	"uygulanmadı"
 }
 };
 

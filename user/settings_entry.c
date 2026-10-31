@@ -227,6 +227,7 @@ void wq_settings_pump(void)
 		}
 	}
 	set_lock();
+	wq_mac_publish(&g_settings.macuse0, &g_settings.macuse1, &g_settings.macbusy);
 	wqUiPublish(&g_settings);                      /* periodic reflect           */
 	set_unlock();
 }

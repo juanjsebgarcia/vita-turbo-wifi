@@ -223,6 +223,7 @@ static uint8_t           g_custom[6];
 static uint8_t           g_saved_factory[6];
 static volatile uint32_t g_applied_powerups;
 static volatile int      g_retry;              /* last SET failed: retry      */
+static volatile int      g_applying;           /* inside apply()              */
 static int               g_retry_n;            /* retries so far              */
 static SceInt64          g_retry_at;           /* next one, process time (us) */
 static char              g_queue[MAC_QUEUE][WQ_UI_CMD_MAX];
@@ -291,6 +292,7 @@ static int apply(const uint8_t *m, const char *why)
 	int tries = 0;
 	memset(&st, 0, sizeof(st));
 	if (g_mtx >= 0) sceKernelLockMutex(g_mtx, 1, NULL);
+	g_applying = 1;
 	int r = can_send() ? ensure_ctx(&st) : WQ_ERR_NOT_READY;
 	if (r == WQ_OK) {
 		note_factory(&st);
@@ -332,6 +334,7 @@ static int apply(const uint8_t *m, const char *why)
 	} else if (retryable(r)) {
 		g_retry = 1;
 	}
+	g_applying = 0;
 	if (g_mtx >= 0) sceKernelUnlockMutex(g_mtx, 1);
 	char line[200], *p = line, *end = line + sizeof(line);
 	p = put(p, end, "mac: ");      p = put(p, end, why);
@@ -618,28 +621,69 @@ void wq_mac_boot(int mode, unsigned m0, unsigned m1, unsigned f0, unsigned f1, i
 		WQ_LOGW("mac: boot apply not started");
 }
 
-/* HUD, in Custom only (0 in Default: no line). mac = the address in use now
- * (the driver's copy, else SceNet's); 1 if it is the custom one, 2 while a
- * change is still under way, 3 if the custom one did not take. */
-int wq_mac_hud(uint8_t mac[6])
+/* The address in use now: the driver's copy, or the console's own if the chip
+ * has powered up since the last SET (stale); SceNet's before the driver was
+ * reached; the saved own address as a last resort. */
+static void in_use(const WqMacStatus *st, uint8_t out[6])
 {
 	static const uint8_t zero[6];
-	if (g_mode != 1)
-		return 0;
+	if (st->ctx_seen && memcmp(st->drv, zero, 6)) {
+		memcpy(out, st->stale ? st->factory : st->drv, 6);
+		return;
+	}
+	SceNetEtherAddr na;
+	memset(&na, 0, sizeof(na));
+	if (sceNetGetMacAddress(&na, 0) >= 0 && memcmp(na.data, zero, 6))
+		memcpy(out, na.data, 6);
+	else
+		memcpy(out, g_saved_factory, 6);
+}
+
+/* The address in use, the one the setting asks for (custom, or the console's
+ * own), and 1 while a change towards it is still under way: being applied,
+ * queued, waiting to retry, or waiting for a chip power-up to be handled or
+ * for the radio to come on. */
+static int mac_now(uint8_t use[6], uint8_t want[6])
+{
+	static const uint8_t zero[6];
 	WqMacStatus st;
 	memset(&st, 0, sizeof(st));
 	kmac(WQ_MAC_OP_STATUS, 0, 0, &st);         /* reads only */
-	if (st.ctx_seen && memcmp(st.drv, zero, 6)) {
-		memcpy(mac, st.drv, 6);
-	} else {
-		SceNetEtherAddr na;
-		memset(&na, 0, sizeof(na));
-		sceNetGetMacAddress(&na, 0);
-		memcpy(mac, na.data, 6);
-	}
-	if (!memcmp(mac, g_custom, 6))
-		return 1;
-	return (g_job_busy || g_retry || g_q_tail != g_q_head) ? 2 : 3;
+	in_use(&st, use);
+	memcpy(want, g_mode == 1 ? g_custom : g_saved_factory, 6);
+	if (!memcmp(want, zero, 6))
+		memcpy(want, use, 6);                    /* own address not known yet */
+	if (!memcmp(use, want, 6))
+		return 0;
+	return g_applying || g_job_busy || g_retry || g_q_tail != g_q_head ||
+	       (st.hooked && st.powerups != g_applied_powerups) || !radio_on();
+}
+
+/* HUD, Custom only (0 in Default: no line): 1 and the custom address while it
+ * is in use, 2 and the custom address while a change to it is under way,
+ * 3 and the address in use if the custom one did not take. */
+int wq_mac_hud(uint8_t mac[6])
+{
+	uint8_t use[6], want[6];
+	if (g_mode != 1)
+		return 0;
+	int busy = mac_now(use, want);
+	if (!memcmp(use, want, 6)) { memcpy(mac, want, 6); return 1; }
+	if (busy)                  { memcpy(mac, want, 6); return 2; }
+	memcpy(mac, use, 6);
+	return 3;
+}
+
+/* Settings page: the address in use and whether a change is under way, into
+ * the published state (WqUiState.macuse0/1, macbusy). */
+void wq_mac_publish(int *use0, int *use1, int *busy)
+{
+	uint8_t use[6], want[6];
+	unsigned w0, w1;
+	*busy = mac_now(use, want);
+	split(use, &w0, &w1);
+	*use0 = (int)w0;
+	*use1 = (int)w1;
 }
 
 /* ---- commands -------------------------------------------------------------- */

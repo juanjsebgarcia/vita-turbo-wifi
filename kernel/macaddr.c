@@ -92,6 +92,8 @@ static int      g_have_factory;
 static int32_t  g_last_rc;
 static uint32_t g_ctl_check = 1;
 static uint32_t g_chain = 1;                /* last walk's result (WALK/SET)      */
+static int      g_set_ok;                   /* a SET was confirmed this boot      */
+static uint32_t g_set_powerups;             /* g_powerups at that SET             */
 static uint8_t  g_lladdr[6], g_descmac[6];  /* what that walk read                */
 
 /* Kernel heap blocks can sit low (the driver ctx is around 0x01f0xxxx), so
@@ -361,6 +363,8 @@ static int op_set(uintptr_t ctx, const uint8_t *mac)
 	mac_cpy(dm, mac);
 	mac_cpy(g_lladdr, mac);
 	mac_cpy(g_descmac, mac);
+	g_set_powerups = pu;
+	g_set_ok = 1;
 	return WQ_OK;
 }
 
@@ -399,6 +403,10 @@ static void fill(WqMacStatus *o)
 	if (!g_have_factory)
 		mac_cpy(o->factory, o->drv);     /* not modified yet, so this is it */
 	o->have_factory = 1;
+	/* The driver never asks the chip again after the first bring-up: after a
+	 * later power-up the chip is on its own address while ctx+0x728 still
+	 * holds the last SET. */
+	o->stale = g_set_ok && g_powerups != g_set_powerups;
 }
 
 int macaddr_op(int op, const uint8_t mac[6], WqMacStatus *out)
