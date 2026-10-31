@@ -28,9 +28,14 @@ int wq_mac_queue(const char *line);
  * connected. Cheap: nothing once it is known. */
 void wq_mac_net_tick(void);
 
-/* HUD line, Custom only: the address in use now and 1 (it is the custom one),
- * 2 (a change is under way) or 3 (the custom one did not take); 0 in Default. */
+/* HUD line, Custom only (0 in Default): 1 + the custom address (in use),
+ * 2 + the custom address (a change to it is under way), 3 + the address in
+ * use (the custom one did not take). */
 int wq_mac_hud(uint8_t mac[6]);
+
+/* Published for the Settings page: the address in use (two words, WqUiState
+ * form) and 1 while a change is under way. */
+void wq_mac_publish(int *use0, int *use1, int *busy);
 
 /* Boot: the saved mode, custom address and the console's own address (each
  * as two words, WqUiState form). Starts the power-up watcher and, for

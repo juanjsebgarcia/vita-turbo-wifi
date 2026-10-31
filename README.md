@@ -95,8 +95,9 @@ buffer drops packets, and TCP slows down after every loss.
   allowed so the battery reaches 100%.
 - 📡 **Live HUD.** An on-screen overlay read live from the driver, in two
   sizes: *Compact* is one line (network, signal, channel); *Extended* adds
-  the link width, **SNR**, access point, active profile and, with a custom MAC
-  address, that address. It shows on the Home screen, in Settings and in the
+  the link width, **SNR**, access point, active profile and, in *Custom* MAC
+  address mode, the address in use (marked if the custom one is still being
+  applied or did not take). It shows on the Home screen, in Settings and in the
   quick menu (press the PS button in a game); turn on *In-game HUD* to keep it
   over games too.
 - 🎛️ **Quick menu toggles** (optional). *Keep Wi-Fi on* and the power profile
@@ -167,7 +168,7 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 | Option | What it does | Default |
 |---|---|---|
 | **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off on its timer, but the Vita stays awake behind it; a single press of the power button is what puts it to sleep. While charging, standby is allowed so the battery reaches 100%. | On |
-| **Wi-Fi HUD overlay** | *Off*, *Compact* (one line: network, signal, channel) or *Extended* (adds link width, SNR, access point, profile, last error and, with a custom MAC address, that address). | Off |
+| **Wi-Fi HUD overlay** | *Off*, *Compact* (one line: network, signal, channel) or *Extended* (adds link width, SNR, access point, profile, last error and, in *Custom* MAC address mode, the address in use). | Off |
 | **HUD position** | Which corner of the screen the HUD sits in. | Top left |
 | **In-game HUD** | Also shows the HUD over games and apps. When off, it shows only on the Home screen, in Settings and in the quick menu (press the PS button). | Off |
 | **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up. | On |

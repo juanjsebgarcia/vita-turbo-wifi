@@ -129,6 +129,10 @@ enum wq_i18n_id {
 	WT_I18N_ITEM_HUD_COMPACT,   /* "Compact"                  */
 	WT_I18N_ITEM_HUD_EXTENDED,  /* "Extended"                 */
 
+	/* Marks after the Current MAC address (in brackets) */
+	WT_I18N_MAC_PENDING,        /* "pending"                  */
+	WT_I18N_MAC_NOTAPPLIED,     /* "not applied"              */
+
 	WT_I18N_COUNT
 };
 

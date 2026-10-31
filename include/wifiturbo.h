@@ -75,10 +75,11 @@ typedef struct WqHudState {
 	char     notice[40];       /* transient status line (e.g. revert armed)   */
 	int32_t  lang;             /* system language (wq_i18n_lang) for HUD i18n  */
 	uint8_t  compact;          /* HUD mode: 1 = Compact (one line), 0 = Extended */
-	uint8_t  mac_custom;       /* Custom MAC mode: 0 off (no line); mac = the
-	                            * address in use; 1 it is the custom one, 2 a
-	                            * change is under way, 3 the custom one did not
-	                            * take */
+	uint8_t  mac_custom;       /* Custom MAC mode, 0 = Default (no line):
+	                            * 1 mac = the custom address, in use;
+	                            * 2 mac = the custom address, being applied;
+	                            * 3 mac = the address in use, the custom one
+	                            *   did not take */
 	uint8_t  mac[6];           /* ... this one (shown as a HUD line)           */
 } WqHudState;
 

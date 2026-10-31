@@ -121,7 +121,10 @@ typedef struct WqMacStatus {
 	uint8_t  descmac[6];    /* address in the attach descriptor now            */
 	uint8_t  factory[6];    /* the console's own address                       */
 	uint8_t  live[6];       /* address the chip reported in the last SET       */
-	uint8_t  pad[2];
+	uint8_t  stale;         /* 1: the chip powered up since the last confirmed
+	                         * SET, so it is back on its own address and drv
+	                         * is out of date until the next SET              */
+	uint8_t  pad;
 } WqMacStatus;
 int wqMacAddr(int op, unsigned mac0, unsigned mac1, WqMacStatus *out);
 
@@ -207,8 +210,14 @@ typedef struct {
 	int macmode;    /* EXPERIMENTAL MAC address: 0 stock / 1 custom.           */
 	int mac0, mac1; /* custom address: bytes 0..3, bytes 4..5 (wqMacAddr form) */
 	int fmac0, fmac1; /* the console's own address, same form; 0 = not known
-	                 * yet. Last fields: a settings.bin from an older build is
-	                 * shorter and the missing tail loads as 0. */
+	                 * yet. */
+	/* Published state, not settings (refreshed by SceShell every second;
+	 * saved in settings.bin along with the rest but never read back):
+	 * the address in use now (0/0 = not known) and 1 while a MAC change is
+	 * still being applied. Last fields: a settings.bin from an older build
+	 * is shorter and the missing tail loads as 0. */
+	int macuse0, macuse1;
+	int macbusy;
 } WqUiState;
 
 #define WQ_UI_CMD_MAX 64              /* command buffer size for wqUiSubmit/Drain */
