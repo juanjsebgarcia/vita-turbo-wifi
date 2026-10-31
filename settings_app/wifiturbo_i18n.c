@@ -1082,28 +1082,28 @@ static const char *const g_tbl[WT_I18N_COUNT][WT_LANG_COUNT] = {
 	"Geçerli MAC adresi"
 },
 
-/* WT_I18N_HINT_MACCUR - "The MAC address this system uses on Wi-Fi: its own in Default, the custom one in Custom. Shown for reference only." */
+/* WT_I18N_HINT_MACCUR - "The MAC address this system is using on Wi-Fi right now. If it isn't the custom address, that one isn't in use yet. Shown for reference only." */
 {
-	"この本体がWi-Fiで使っているMACアドレスです：標準では本体のアドレス、カスタムではカスタムアドレスです。表示のみです。",
-	"The MAC address this system uses on Wi-Fi: its own in Default, the custom one in Custom. Shown for reference only.",
-	"L'adresse MAC que le système utilise en Wi-Fi : la sienne en Par défaut, la personnalisée en Personnalisée. Affichée à titre d'information uniquement.",
-	"La dirección MAC que usa el sistema en Wi-Fi: la suya en Predeterminado, la personalizada en Personalizada. Solo se muestra como referencia.",
-	"Die MAC-Adresse, die das System im WLAN verwendet: die eigene bei Standard, die benutzerdefinierte bei Benutzerdefiniert. Nur zur Information.",
-	"L'indirizzo MAC che il sistema usa sul Wi-Fi: il suo in Predefinito, quello personalizzato in Personalizzato. Solo a titolo informativo.",
-	"Het MAC-adres dat het systeem op wifi gebruikt: het eigen adres bij Standaard, het aangepaste bij Aangepast. Alleen ter informatie.",
-	"O endereço MAC que o sistema usa no Wi-Fi: o próprio em Predefinido, o personalizado em Personalizado. Apenas para consulta.",
-	"MAC-адрес, который система использует в Wi-Fi: собственный при «По умолчанию», заданный при «Своё». Только для справки.",
-	"이 시스템이 Wi-Fi에서 사용하는 MAC 주소입니다: 기본값에서는 자체 주소, 사용자 지정에서는 사용자 지정 주소입니다. 참고용으로만 표시됩니다.",
-	"本主機在 Wi-Fi 上使用的 MAC 位址：預設時為本機位址，自訂時為自訂位址。僅供參考。",
-	"本主机在 Wi-Fi 上使用的 MAC 地址：默认时为本机地址，自定义时为自定义地址。仅供参考。",
-	"MAC-osoite, jota järjestelmä käyttää Wi-Fi-yhteydessä: oma osoite Oletus-tilassa, mukautettu Mukautettu-tilassa. Vain tiedoksi.",
-	"MAC-adressen som systemet använder på Wi-Fi: den egna vid Standard, den anpassade vid Anpassad. Visas endast som information.",
-	"MAC-adressen, som systemet bruger på Wi-Fi: sin egen ved Standard, den brugerdefinerede ved Brugerdefineret. Vises kun til orientering.",
-	"MAC-adressen systemet bruker på Wi-Fi: sin egen ved Standard, den egendefinerte ved Egendefinert. Vises kun til informasjon.",
-	"Adres MAC używany przez system w Wi-Fi: własny w trybie Domyślny, ustawiony w trybie Własny. Tylko do wglądu.",
-	"O endereço MAC que o sistema usa no Wi-Fi: o próprio em Padrão, o personalizado em Personalizado. Apenas para referência.",
-	"The MAC address this system uses on Wi-Fi: its own in Default, the custom one in Custom. Shown for reference only.",
-	"Sistemin Wi-Fi'da kullandığı MAC adresi: Varsayılan'da kendi adresi, Özel'de özel adres. Yalnızca bilgi amaçlı gösterilir."
+	"この本体が現在Wi-Fiで使っているMACアドレスです。カスタムアドレスと違う場合、カスタムアドレスはまだ使われていません。表示のみです。",
+	"The MAC address this system is using on Wi-Fi right now. If it isn't the custom address, that one isn't in use yet. Shown for reference only.",
+	"L'adresse MAC que le système utilise en ce moment en Wi-Fi. Si ce n'est pas l'adresse personnalisée, celle-ci n'est pas encore utilisée. Affichée à titre d'information uniquement.",
+	"La dirección MAC que el sistema usa ahora mismo en Wi-Fi. Si no es la personalizada, esa todavía no se está usando. Solo se muestra como referencia.",
+	"Die MAC-Adresse, die das System gerade im WLAN verwendet. Ist es nicht die benutzerdefinierte, wird diese noch nicht verwendet. Nur zur Information.",
+	"L'indirizzo MAC che il sistema sta usando ora sul Wi-Fi. Se non è quello personalizzato, quest'ultimo non è ancora in uso. Solo a titolo informativo.",
+	"Het MAC-adres dat het systeem nu op wifi gebruikt. Is dit niet het aangepaste adres, dan is dat nog niet in gebruik. Alleen ter informatie.",
+	"O endereço MAC que o sistema está a usar agora no Wi-Fi. Se não for o personalizado, esse ainda não está em uso. Apenas para consulta.",
+	"MAC-адрес, который система сейчас использует в Wi-Fi. Если это не заданный адрес, он ещё не применён. Только для справки.",
+	"이 시스템이 지금 Wi-Fi에서 사용 중인 MAC 주소입니다. 사용자 지정 주소와 다르면 사용자 지정 주소는 아직 사용되지 않고 있습니다. 참고용으로만 표시됩니다.",
+	"本主機目前在 Wi-Fi 上使用的 MAC 位址。若不是自訂位址，表示自訂位址尚未使用。僅供參考。",
+	"本主机当前在 Wi-Fi 上使用的 MAC 地址。若不是自定义地址，表示自定义地址尚未使用。仅供参考。",
+	"MAC-osoite, jota järjestelmä käyttää Wi-Fi-yhteydessä juuri nyt. Jos se ei ole mukautettu osoite, mukautettu ei ole vielä käytössä. Vain tiedoksi.",
+	"MAC-adressen som systemet använder på Wi-Fi just nu. Om det inte är den anpassade adressen används den inte än. Visas endast som information.",
+	"MAC-adressen, som systemet bruger på Wi-Fi lige nu. Hvis det ikke er den brugerdefinerede adresse, er den ikke i brug endnu. Vises kun til orientering.",
+	"MAC-adressen systemet bruker på Wi-Fi akkurat nå. Hvis det ikke er den egendefinerte adressen, er den ikke i bruk ennå. Vises kun til informasjon.",
+	"Adres MAC, którego system używa teraz w Wi-Fi. Jeśli to nie jest adres własny, nie jest on jeszcze używany. Tylko do wglądu.",
+	"O endereço MAC que o sistema está usando agora no Wi-Fi. Se não for o personalizado, ele ainda não está em uso. Apenas para referência.",
+	"The MAC address this system is using on Wi-Fi right now. If it isn't the custom address, that one isn't in use yet. Shown for reference only.",
+	"Sistemin şu anda Wi-Fi'da kullandığı MAC adresi. Özel adres değilse, özel adres henüz kullanılmıyor. Yalnızca bilgi amaçlı gösterilir."
 },
 
 /* WT_I18N_ITEM_HUD_OFF - "Off" */

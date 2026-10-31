@@ -28,7 +28,8 @@ int wq_mac_queue(const char *line);
  * connected. Cheap: nothing once it is known. */
 void wq_mac_net_tick(void);
 
-/* HUD line: 1 and the custom address while one is in use, else 0. */
+/* HUD line, Custom only: the address in use now and 1 (it is the custom one),
+ * 2 (a change is under way) or 3 (the custom one did not take); 0 in Default. */
 int wq_mac_hud(uint8_t mac[6]);
 
 /* Boot: the saved mode, custom address and the console's own address (each

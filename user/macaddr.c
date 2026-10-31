@@ -618,13 +618,28 @@ void wq_mac_boot(int mode, unsigned m0, unsigned m1, unsigned f0, unsigned f1, i
 		WQ_LOGW("mac: boot apply not started");
 }
 
-/* HUD: 1 and the address while a custom one is in use, else 0. */
+/* HUD, in Custom only (0 in Default: no line). mac = the address in use now
+ * (the driver's copy, else SceNet's); 1 if it is the custom one, 2 while a
+ * change is still under way, 3 if the custom one did not take. */
 int wq_mac_hud(uint8_t mac[6])
 {
+	static const uint8_t zero[6];
 	if (g_mode != 1)
 		return 0;
-	memcpy(mac, g_custom, 6);
-	return 1;
+	WqMacStatus st;
+	memset(&st, 0, sizeof(st));
+	kmac(WQ_MAC_OP_STATUS, 0, 0, &st);         /* reads only */
+	if (st.ctx_seen && memcmp(st.drv, zero, 6)) {
+		memcpy(mac, st.drv, 6);
+	} else {
+		SceNetEtherAddr na;
+		memset(&na, 0, sizeof(na));
+		sceNetGetMacAddress(&na, 0);
+		memcpy(mac, na.data, 6);
+	}
+	if (!memcmp(mac, g_custom, 6))
+		return 1;
+	return (g_job_busy || g_retry || g_q_tail != g_q_head) ? 2 : 3;
 }
 
 /* ---- commands -------------------------------------------------------------- */

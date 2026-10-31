@@ -37,7 +37,4 @@ int rxcycle_last_powered_down(void);
  * has not taken within 30 s). Does not return if it works. */
 int rxcycle_reboot(void);
 
-/* The same, from its own thread after 2 s, so a command reply can go out. */
-int rxcycle_reboot_async(void);
-
 #endif /* WIFITURBO_RXCYCLE_H */

@@ -43,7 +43,7 @@ static int sampler_thread(SceSize args, void *argp)
 			s.lang = wq_i18n_lang();   /* HUD labels follow the system language */
 			wq_safety_status(s.notice, sizeof(s.notice));
 			s.compact = (uint8_t)g_hud_compact;
-			s.mac_custom = (uint8_t)wq_mac_hud(s.mac);   /* MAC line only in Custom */
+			s.mac_custom = (uint8_t)wq_mac_hud(s.mac);   /* MAC line only in Custom: 1/2/3 */
 			wqHudSetState(&s);
 		}
 		sceKernelDelayThread(1000 * 1000);

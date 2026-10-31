@@ -300,8 +300,9 @@ static ctl_fn ctl_resolve(uintptr_t ctx)
 	return (ctl_fn)(uintptr_t)entry;
 }
 
-/* The driver's own get-MAC. With set != NULL the one-shot turns its GET into
- * a SET of *set. Fills g_live/g_last_rc. */
+/* The driver's own get-MAC, with the one-shot armed so its GET goes out as a
+ * SET of *set (op_set's validated address; never NULL). Fills g_live and
+ * g_last_rc with the reply. */
 static int ctl_get_mac(uintptr_t ctx, const uint8_t *set)
 {
 	ctl_fn fn = ctl_resolve(ctx);
@@ -313,10 +314,8 @@ static int ctl_get_mac(uintptr_t ctx, const uint8_t *set)
 	memset(buf, 0, sizeof(buf));
 	buf[1] = CTL_BUF_LEN;
 	g_oneshot_used = 0;
-	if (set) {
-		mac_cpy(g_oneshot_mac, set);
-		g_oneshot = 1;
-	}
+	mac_cpy(g_oneshot_mac, set);
+	g_oneshot = 1;
 	int rc = fn((void *)(ctx + CTX_DESC), CTL_GET_MAC, buf, CTL_BUF_LEN);
 	g_oneshot = 0;                       /* never leave it armed for a later GET */
 	g_last_rc = rc;
