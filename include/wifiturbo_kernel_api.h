@@ -98,11 +98,11 @@ int wqForceReboot(void);   /* EXPERIMENTAL: syscon reset, rxcycle watchdog last 
  * caller re-sends after each one (powerups counts them). mac0 = bytes 0..3,
  * mac1 = bytes 4..5, as for wqRoamAssistArm. Always fills *out. */
 #define WQ_MAC_OP_STATUS    0   /* read state; installs nothing, walks nothing  */
-#define WQ_MAC_OP_LIVE      1   /* ask the chip now; fills live/last_rc         */
+                                /* 1: unused                                    */
 #define WQ_MAC_OP_SET       2   /* SET mac0/mac1 now (link should be down)      */
 #define WQ_MAC_OP_HOOK      3   /* install the hooks (if not yet), then STATUS  */
 #define WQ_MAC_OP_WALK      4   /* HOOK, plus a fresh ctx->wlan0 walk           */
-/* LIVE and SET return WQ_ERR_BUSY while the chip is off, powering up, or
+/* SET returns WQ_ERR_BUSY while the chip is off, powering up, or
  * within WQ_MAC_SETTLE_MS of a power-up: retry later. */
 #define WQ_MAC_SETTLE_MS    500
 
@@ -115,12 +115,12 @@ typedef struct WqMacStatus {
 	uint32_t powerups;      /* chip power-ups seen since the hooks went in     */
 	uint32_t sets;          /* SETs the chip was sent                          */
 	uint32_t have_factory;
-	int32_t  last_rc;       /* control call return of the last LIVE/SET        */
+	int32_t  last_rc;       /* control call return of the last SET             */
 	uint8_t  drv[6];        /* driver's copy now (ctx+0x728)                   */
 	uint8_t  lladdr[6];     /* SceNetPs wlan0 link-level address now           */
 	uint8_t  descmac[6];    /* address in the attach descriptor now            */
 	uint8_t  factory[6];    /* the console's own address                       */
-	uint8_t  live[6];       /* address the chip reported in the last LIVE/SET  */
+	uint8_t  live[6];       /* address the chip reported in the last SET       */
 	uint8_t  pad[2];
 } WqMacStatus;
 int wqMacAddr(int op, unsigned mac0, unsigned mac1, WqMacStatus *out);

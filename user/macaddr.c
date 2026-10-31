@@ -22,7 +22,7 @@
  *
  * Commands (dispatch.c, from :1339; the Settings page queues them for the
  * watcher thread, wq_mac_queue, so the keepwifi tick never waits on them):
- *   mac status | probe | stock | custom | random | set <addr> | cycle
+ *   mac status | stock | custom | random | set <addr>
  * The chosen mode and address are saved through wq_settings_note as
  * "mac state <0|1> <12 hex>"; the console's own address as "mac factory <12 hex>".
  */
@@ -225,7 +225,6 @@ static volatile uint32_t g_applied_powerups;
 static volatile int      g_retry;              /* last SET failed: retry      */
 static int               g_retry_n;            /* retries so far              */
 static SceInt64          g_retry_at;           /* next one, process time (us) */
-static volatile unsigned g_watch_ticks;        /* watcher loops (mac status)  */
 static char              g_queue[MAC_QUEUE][WQ_UI_CMD_MAX];
 static volatile unsigned g_q_head, g_q_tail;
 static volatile int      g_watch_started, g_job_busy;
@@ -430,7 +429,6 @@ static int watch_thread(SceSize args, void *argp)
 	static const uint8_t zero[6];
 	for (int t = 0;; t++) {
 		sceKernelDelayThread(g_fast ? 200 * 1000 : 1000 * 1000);
-		g_watch_ticks++;
 		if (g_fast && t > 300)                     /* ~60 s after boot */
 			g_fast = 0;
 		run_queue();
@@ -651,17 +649,6 @@ static char *put_status(char *p, char *end, const WqMacStatus *s)
 	              : s->ctl_check == 3 ? "BACKPTR-MISMATCH" : "?");
 	p = put(p, end, " powerups "); p = put_u(p, end, s->powerups);
 	p = put(p, end, " sets ");     p = put_u(p, end, s->sets);
-	/* Watcher state, for soak runs. */
-	SceInt64 in = g_retry_at ? (g_retry_at - (SceInt64)sceKernelGetProcessTimeWide()) / 1000000 : 0;
-	p = put(p, end, " | watch ");  p = put_u(p, end, g_watch_ticks);
-	p = put(p, end, " job ");      p = put_u(p, end, g_job_busy);
-	p = put(p, end, " retry ");    p = put_u(p, end, g_retry);
-	p = put(p, end, "/");          p = put_u(p, end, (unsigned)g_retry_n);
-	p = put(p, end, " in ");       p = put(p, end, in < 0 ? "-" : ""); p = put_u(p, end, (unsigned)(in < 0 ? -in : in));
-	p = put(p, end, "s radio ");   p = put_u(p, end, (unsigned)radio_on());
-	p = put(p, end, " cycle ");    p = put_u(p, end, (unsigned)rxcycle_phase());
-	p = put(p, end, "/");          p = put_u(p, end, (unsigned)rxcycle_settled());
-	p = put(p, end, " sleep ");    p = put_u(p, end, (unsigned)keepwifi_power_busy());
 	if (!s->hooked)   p = put(p, end, " | NOT HOOKED");
 	if (!s->ctx_seen) p = put(p, end, " | no driver ctx yet");
 	return p;
@@ -679,17 +666,7 @@ int wq_mac_cmd(const char *a, char *out, int outcap)
 #define IS(w) (strncmp(a, w, sizeof(w) - 1) == 0 && (a[sizeof(w) - 1] == 0 || a[sizeof(w) - 1] == ' '))
 
 	if (!a[0] || IS("status")) {
-		int r = kmac(WQ_MAC_OP_WALK, 0, 0, &st);   /* developer view: fresh walk */
-		put_status(p, end, &st);
-		return r;
-	}
-	if (IS("probe")) {
-		ensure_ctx(&st);
-		int r = can_send() ? kmac(WQ_MAC_OP_LIVE, 0, 0, &st) : WQ_ERR_NOT_READY;
-		kmac(WQ_MAC_OP_WALK, 0, 0, &st);
-		p = put(p, end, r == WQ_OK ? "mac probe: chip says " : "mac probe: FAILED ");
-		if (r == WQ_OK) p = put_mac(p, end, st.live);
-		p = put(p, end, " | ");
+		int r = kmac(WQ_MAC_OP_WALK, 0, 0, &st);   /* all four copies, freshly read */
 		put_status(p, end, &st);
 		return r;
 	}
@@ -748,17 +725,7 @@ int wq_mac_cmd(const char *a, char *out, int outcap)
 		put(p, end, r == WQ_OK ? " - Wi-Fi drops and rejoins" : " - saved, not applied");
 		return r;
 	}
-	if (IS("cycle")) {
-		if (!radio_on()) {
-			put(p, end, "mac: radio is off");
-			return WQ_OK;
-		}
-		int c = rxcycle_start_ex(0, netctl_state() == 3, NULL);
-		put(p, end, c == WQ_OK ? "mac: power-cycling the radio (~20 s)"
-		                       : "mac: power-cycle NOT started (busy?)");
-		return c;
-	}
 #undef IS
-	put(p, end, "usage: mac status|probe|stock|custom|random|set <addr>|cycle");
+	put(p, end, "usage: mac status|stock|custom|random|set <addr>");
 	return WQ_ERR_ARG;
 }
