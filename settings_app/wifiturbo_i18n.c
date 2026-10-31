@@ -23,6 +23,7 @@
  *   - SceAppUtil_stub_weak         (sceAppUtilSystemParamGetInt)
  */
 #include "wifiturbo_i18n.h"
+#include "../user/imports.h"   /* wq_import_ready */
 
 /* ---- platform imports (self-contained prototypes) ---------------------- */
 
@@ -1211,14 +1212,16 @@ int wq_i18n_lang(void)
 	/* Primary (reliable for NPXS10015): the system registry. SceSettings
 	 * already links RegMgr; /CONFIG/SYSTEM/language is the canonical store and
 	 * has no init gate. */
-	if (sceRegMgrGetKeyInt("/CONFIG/SYSTEM", "language", &lang) >= 0 &&
+	if (wq_import_ready((const void *)sceRegMgrGetKeyInt) &&
+	    sceRegMgrGetKeyInt("/CONFIG/SYSTEM", "language", &lang) >= 0 &&
 	    lang >= 0 && lang < WT_LANG_COUNT)
 		return lang;
 
 	/* Fallback: SDK system param. Only works once the host app has called
 	 * sceAppUtilInit(); otherwise returns SCE_APPUTIL_ERROR_NOT_INITIALIZED. */
 	lang = -1;
-	if (sceAppUtilSystemParamGetInt(WT_SYSTEM_PARAM_ID_LANG, &lang) >= 0 &&
+	if (wq_import_ready((const void *)sceAppUtilSystemParamGetInt) &&
+	    sceAppUtilSystemParamGetInt(WT_SYSTEM_PARAM_ID_LANG, &lang) >= 0 &&
 	    lang >= 0 && lang < WT_LANG_COUNT)
 		return lang;
 

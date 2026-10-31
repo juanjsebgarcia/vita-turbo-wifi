@@ -28,6 +28,9 @@
  * the user a revert is armed and how to confirm it.
  */
 #include <psp2/net/net.h>
+#include <psp2/net/netctl.h>
+#include <psp2/power.h>        /* scePowerIsPowerOnline (imports_missing) */
+#include "imports.h"
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/kernel/processmgr.h>   /* sceKernelGetProcessTimeWide (speedtest) */
 #include <psp2/kernel/clib.h>
@@ -694,6 +697,20 @@ static void dispatch_set_devmode(int on)
 	        g_devmode ? "ON" : "off", WQ_DISPATCH_PORT, g_devmode ? "listening" : "closed");
 }
 
+/* The libraries the subsystems call from here on: SceShell loads its own
+ * copies of these during its start-up, which can run past our 3 s when many
+ * plugins load first. Until a library has loaded, our weak import of it jumps
+ * to address 0 (user/imports.h), so nothing may call it before then. */
+extern int sceRegMgrGetKeyInt(const char *category, const char *name, int *value);
+static const char *imports_missing(void)
+{
+	if (!wq_import_ready((const void *)sceNetCtlInetGetState)) return "SceNetCtl";
+	if (!wq_import_ready((const void *)sceNetSocket))          return "SceNet";
+	if (!wq_import_ready((const void *)sceRegMgrGetKeyInt))    return "SceRegMgr";
+	if (!wq_import_ready((const void *)scePowerIsPowerOnline)) return "ScePower";
+	return NULL;
+}
+
 static int server_thread(SceSize args, void *argp)
 {
 	(void)args; (void)argp;
@@ -701,6 +718,7 @@ static int server_thread(SceSize args, void *argp)
 	/* Off the boot-critical path: wait for SceNet to be ready, then bring up
 	 * every subsystem in the order the old module_start used. All non-fatal. */
 	sceKernelDelayThread(WQ_DEFERRED_BRINGUP_DELAY_US);
+
 	if (!g_run)
 		return 0;
 
@@ -719,6 +737,13 @@ static int server_thread(SceSize args, void *argp)
 	 * initialised it, so we never initialise it first. */
 	WQ_LOGI("bringup: waiting for SceShell to initialise SceNetCtl");
 	unsigned polls = 0;
+	const char *missing;
+	while (g_run && (missing = imports_missing()) != NULL) {
+		if (polls++ % WQ_NETCTL_WAIT_LOG_EVERY == 0)
+			WQ_LOGI("bringup: %s not loaded in SceShell yet - waiting (+%u ms)", missing,
+			        polls * (WQ_NETCTL_POLL_US / 1000));
+		sceKernelDelayThread(WQ_NETCTL_POLL_US);
+	}
 	while (g_run && !diag_netctl_ready()) {
 		sceKernelDelayThread(WQ_NETCTL_POLL_US);
 		if (++polls % WQ_NETCTL_WAIT_LOG_EVERY == 0)

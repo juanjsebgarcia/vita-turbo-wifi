@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "diag.h"
+#include "imports.h"
 #include "log.h"
 #include "../include/wifiturbo_kernel_api.h"
 
@@ -39,6 +40,8 @@ static int g_init_rc = 0;      /* last sceNetCtlInit return (for selftest)   */
 int diag_netctl_ready(void)
 {
 	int state = WQ_NETCTL_DISCONNECTED;
+	if (!wq_import_ready((const void *)sceNetCtlInetGetState))
+		return 0;                        /* SceNetCtl not loaded yet (imports.h) */
 	return sceNetCtlInetGetState(&state) == 0;
 }
 
