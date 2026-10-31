@@ -2,7 +2,7 @@ wifiturbo_qm:
   attributes: 0
   version:
     major: 0
-    minor: 4
+    minor: 5
   main:
     start: module_start
     stop: module_stop

@@ -34,6 +34,7 @@
 #include "psprofile.h"
 #include "klog.h"
 #include "rxring.h"
+#include "macaddr.h"
 #include <psp2kern/kernel/syscon.h>   /* ksceSysconSetPowerMode (wqForceReboot) */
 
 /* ---- copy-in/out helpers ------------------------------------------------ */
@@ -153,6 +154,18 @@ int wqRxRing(int op, WqRxRingStats *out)
 	return r;
 }
 
+/* EXPERIMENTAL: chosen MAC address (macaddr.c), WQ_MAC_OP_*. */
+int wqMacAddr(int op, unsigned mac0, unsigned mac1, WqMacStatus *out)
+{
+	uint8_t b[6] = { (uint8_t)mac0, (uint8_t)(mac0 >> 8), (uint8_t)(mac0 >> 16),
+	                 (uint8_t)(mac0 >> 24), (uint8_t)mac1, (uint8_t)(mac1 >> 8) };
+	WqMacStatus s;
+	int r = macaddr_op(op, b, &s);
+	if (out)
+		copy_to_user(out, &s, sizeof(s));
+	return r;
+}
+
 /* EXPERIMENTAL: last-resort reset for the receive-buffer power-cycle watchdog
  * (user/rxcycle.c) when SceShell's own cold reset has not taken: a syscon
  * power-mode reset. Abrupt, like holding the power button. */
@@ -222,6 +235,7 @@ int module_stop(SceSize argc, const void *args)
 	roamassist_fini();    /* remove the join-path roam hooks if installed       */
 	psprofile_dtim_set(0); /* restore the stock PS_MODE_ENH builder          */
 	rxring_fini();         /* restore the stock chip image if a size was applied */
+	macaddr_fini();        /* remove the MAC address hooks if installed         */
 	hud_fini();
 	wq_klog_fini();
 	return 0; /* SCE_KERNEL_STOP_SUCCESS */

@@ -93,17 +93,22 @@ buffer drops packets, and TCP slows down after every loss.
   **press the power button once**; that always sleeps it, even with this on
   (hold the button for the power menu as usual). While charging, standby is
   allowed so the battery reaches 100%.
-- 📡 **Live HUD.** An on-screen overlay with network, signal (dBm and %),
-  **SNR**, channel, access point and active profile, read live from the
-  driver. It shows on the Home screen, in Settings and in the quick menu
-  (press the PS button in a game); turn on *In-game HUD* to keep it over games
-  too.
+- 📡 **Live HUD.** An on-screen overlay read live from the driver, in two
+  sizes: *Compact* is one line (network, signal, channel); *Extended* adds
+  the link width, **SNR**, access point, active profile and, with a custom MAC
+  address, that address. It shows on the Home screen, in Settings and in the
+  quick menu (press the PS button in a game); turn on *In-game HUD* to keep it
+  over games too.
 - 🎛️ **Quick menu toggles** (optional). *Keep Wi-Fi on* and the power profile
   in the PS button quick menu, to switch mid-game. See
   [Quick menu toggles](#quick-menu-toggles-optional).
 - 🧭 **Smart Mesh Roaming**. For mesh and multi-AP setups:
   on a weak signal it rescans every channel and joins the strongest access
   point of the same network.
+- 🎭 **MAC address (experimental).** Use the Vita's own Wi-Fi MAC address, or
+  a custom one: type it in, or randomize it (the maker half is kept). Applied
+  before the Vita connects at boot, and again after sleep. See
+  [MAC address](#mac-address-experimental).
 - 🧠 **Wi-Fi receive buffer (experimental).** Gives the Wi-Fi chip more room
   for incoming data, so bursts stop overflowing it: up to **+18% TCP
   download** and steadier uploads. See
@@ -149,6 +154,10 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 |---|---|
 | ![Power profiles](assets/settings-profile.jpg) | ![Wi-Fi Turbo in the Network menu](assets/settings-entry.jpg) |
 
+| MAC address |
+|---|
+| ![MAC address settings](assets/settings-mac.jpg) |
+
 *Network names and access point addresses are redacted in these screenshots.*
 
 ## Options
@@ -158,7 +167,7 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 | Option | What it does | Default |
 |---|---|---|
 | **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off on its timer, but the Vita stays awake behind it; a single press of the power button is what puts it to sleep. While charging, standby is allowed so the battery reaches 100%. | On |
-| **Wi-Fi HUD overlay** | Shows the live overlay (network, signal, SNR, channel, AP, profile). | Off |
+| **Wi-Fi HUD overlay** | *Off*, *Compact* (one line: network, signal, channel) or *Extended* (adds link width, SNR, access point, profile, last error and, with a custom MAC address, that address). | Off |
 | **HUD position** | Which corner of the screen the HUD sits in. | Top left |
 | **In-game HUD** | Also shows the HUD over games and apps. When off, it shows only on the Home screen, in Settings and in the quick menu (press the PS button). | Off |
 | **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up. | On |
@@ -166,6 +175,10 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 | **40 MHz** | Lets the Vita negotiate 40 MHz channels. Needs an access point with 2.4 GHz set to 40 MHz. | Off |
 | **Power profile** | *Max performance*, *Balanced* or *Battery saver* (below). | Balanced |
 | **Wi-Fi receive buffer** | *Default*, *Enhanced* or *Maximum* (experimental, below). Changing it turns Wi-Fi off and on for about 20 s. | Default |
+| **MAC address** | *Default* (the Vita's own) or *Custom* (experimental, below). Choosing *Custom* makes a new random address. | Default |
+| **Custom MAC address** | Type an address (12 hex digits, colons optional). Typing one switches to *Custom*. Greyed out in *Default*. | |
+| **Randomize MAC address** | A new random address that keeps the maker half of the Vita's own. Greyed out in *Default*. | |
+| **Current MAC address** | The address in use, for reference. | |
 | **Developer mode (remote control)** | Opens the remote-control port 1339 on your network, for scripting and testing (below). | Off |
 
 ### Wi-Fi receive buffer (experimental)
@@ -186,13 +199,39 @@ more room by trimming a buffer Sony's firmware sizes for outgoing traffic.
 - Changing it turns Wi-Fi off and on for about **20 seconds**. If Bluetooth
   is on, it is switched off for those few seconds too (the chip only resets
   with both off); paired devices reconnect by themselves.
-- After a reboot the setting is re-applied automatically, about 20 s after
-  the Vita connects (one short Wi-Fi drop).
+- After a reboot the setting is re-applied automatically, as soon as Wi-Fi
+  turns on and before the Vita connects, so it connects once.
 - If a change ever fails to bring Wi-Fi back, the Vita restarts and the next
   boot falls back to *Default*.
 - **Firmware:** the Wi-Fi chip's own firmware comes in two versions: one on
   3.60 to 3.65 (tested on 3.60), another from 3.67 to 3.74. On 3.67 and later
   the option is **untested on a console**: if you try it, please
+  [report back](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues).
+
+### MAC address (experimental)
+
+Every network device has a MAC address, and your router and access points see
+it. *MAC address* lets the Vita use a different one on Wi-Fi.
+
+- **Default** uses the Vita's own address. **Custom** uses the *Custom MAC
+  address*: type one in, or press *Randomize MAC address* for a new random
+  one. A random address keeps the first half (the maker part) of the Vita's
+  own, so it still looks like a Vita on your network.
+- Any change disconnects Wi-Fi for a few seconds and reconnects with the new
+  address. Your router sees a **new device**: the Vita will likely get a
+  **different IP address**, and anything set up for its old address (a
+  reserved IP, a MAC filter, parental controls) won't apply to the new one.
+- A custom address is set again automatically after a reboot (before the Vita
+  first connects) and after sleep. Switching back to *Default* restores the
+  Vita's own address. Nothing is changed permanently: holding L at boot (no
+  plugins) always starts on the Vita's own address.
+- Addresses that can't work are refused: anything that isn't 12 hex digits,
+  multicast addresses (odd first byte), all zeros and all FFs.
+- Use it on networks you're allowed to use. Copying another device's address
+  to get around a network's access controls may be unlawful.
+- **Firmware:** tested on 3.60. The Wi-Fi driver changed in 3.71; the parts
+  this uses are the same there, but 3.71 to 3.74 is **untested on a console**.
+  If you try it, please
   [report back](https://github.com/juanjsebgarcia/vita-turbo-wifi/issues).
 
 ### Power profiles
@@ -241,7 +280,9 @@ which uses ports 1337 and 1338. Send one command per connection, for example
 | `profile maxperf \| balanced \| maxbatt` | Switch power profile (then `confirm`) |
 | `ht40 on \| off` | Toggle 40 MHz (then `confirm`) |
 | `confirm` / `revert` | Keep or undo a pending remote change |
-| `keepwifi on \| off`, `hud on \| off`, `autoreconnect on \| off` | The Settings toggles |
+| `keepwifi on \| off`, `autoreconnect on \| off` | The Settings toggles |
+| `hud off \| compact \| extended` | The HUD (`on` is *extended*) |
+| `mac status`, `mac stock \| custom \| random`, `mac set <addr>` | MAC address: show all copies, or change it |
 | `devmode off` | Close the remote-control port (turn it back on in Settings) |
 | `roam on \| off`, `roam now`, `roam status` | Smart Mesh Roaming |
 | `icm` | Ask the system to connect to your saved networks now |
@@ -441,10 +482,13 @@ This plugin changes how a kernel driver behaves, so it's built to fail safe:
   signature that must match exactly once. A feature whose check fails logs why
   and turns itself off.
 - **Gentle boot.** At boot the plugin restores your settings with a few
-  checked byte patches and a driver flag, before the first Wi-Fi join. It never
-  hooks the driver while the console is starting up.
-- **Small hooks.** The few driver hooks are tiny, only active when needed, and
-  stay off the driver's busy command path.
+  checked byte patches and a driver flag, before the first Wi-Fi join. The
+  driver has finished starting up before any plugin hook goes in.
+- **Small hooks.** The few driver hooks are tiny and only installed when
+  needed. The MAC address feature's hook sits on the driver's command path,
+  where it is a single compare for anything that isn't a MAC address command.
+  A custom MAC address goes through the driver's own "get MAC address"
+  request, and is only taken as set once the Wi-Fi chip reports it.
 - **Escape hatch.** Holding L at boot skips every plugin.
 
 ## Contributing

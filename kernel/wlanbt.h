@@ -22,6 +22,9 @@ typedef struct WlanbtLayout {
 	uint32_t cfg_movt;
 	uint32_t join;         /* join ioctl handler (roamassist)             */
 	uint32_t scan;         /* scan wrapper (roamassist)                   */
+	uint32_t cmd_send;     /* async command send helper (macaddr)         */
+	uint32_t ctl;          /* driver control entry = desc word 0x14 (macaddr) */
+	uint32_t pwr_init;     /* post-firmware init, every power-up (macaddr) */
 } WlanbtLayout;
 
 /* The layout of the running SceWlanBt, or NULL if it matches none we know.

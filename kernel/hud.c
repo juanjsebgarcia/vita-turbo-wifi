@@ -129,7 +129,7 @@ static const char *state_name(int lang, int st)
 	}
 }
 
-#define HUD_MAX_LINES  5
+#define HUD_MAX_LINES  6
 #define HUD_LINE_CHARS  96
 
 static void render(uint32_t *fb, int pitch, int w, int h)
@@ -147,7 +147,24 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 	int   n = 0, maxlen = 0;
 	char *p, *end;
 
-	/* line 1: channel width offered + state + SSID */
+	/* Compact: one line - state, SSID, signal, channel. */
+	if (s->compact) {
+		p = lines[n]; end = p + HUD_LINE_CHARS;
+		p = put_str(p, end, "WiFi ");
+		p = put_str(p, end, state_name(s->lang, s->netctl_state));
+		p = put_str(p, end, " ");
+		p = put_str(p, end, s->ssid[0] ? s->ssid : "-");
+		p = put_str(p, end, " ");
+		p = put_int(p, end, s->rssi_dbm);
+		p = put_str(p, end, "dBm CH");
+		p = put_int(p, end, (int)s->channel);
+		*p = 0;
+		maxlen = (int)(p - lines[n]);
+		n++;
+		goto anchor;
+	}
+
+	/* Extended - line 1: channel width offered + state + SSID */
 	p = lines[n]; end = p + HUD_LINE_CHARS;
 	p = put_str(p, end, ht40patch_active() ? "40MHz WiFi " : "20MHz WiFi ");
 	p = put_str(p, end, state_name(s->lang, s->netctl_state));
@@ -185,6 +202,19 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 	if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
 	n++;
 
+	/* MAC address - Extended only, while a custom one is in use */
+	if (s->mac_custom) {
+		p = lines[n]; end = p + HUD_LINE_CHARS;
+		p = put_str(p, end, "MAC ");
+		for (int i = 0; i < 6; i++) {
+			p = put_hex2(p, end, s->mac[i]);
+			if (i < 5 && p < end - 1) *p++ = ':';
+		}
+		*p = 0;
+		if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
+		n++;
+	}
+
 	/* line 4: profile + last failure reason (human-ish) */
 	p = lines[n]; end = p + HUD_LINE_CHARS;
 	p = put_str(p, end, hud_tr(s->lang, HTR_PROFILE)); p = put_str(p, end, " ");
@@ -215,6 +245,7 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 		n++;
 	}
 
+anchor:
 	/* Anchor the block. Glyphs are 8 px wide at 1x, so a column is 8*HUD_SCALE;
 	 * a line is one glyph tall plus the 4 px inter-line gap used below. */
 	int line_h = (8 * HUD_SCALE) + 4;
@@ -268,6 +299,7 @@ static int hook_set_framebuf(int head, int index,
 	    pitch = (int)pParam->pitch;
 	if (w <= 0 || h <= 0 || pitch < w || w > 1920 || h > 1088)
 		return ret;
+
 
 	/* The read-only HUD draws only when enabled AND the draw is armed. */
 	if (!g_enabled || !g_draw_armed)
