@@ -51,6 +51,7 @@
 #include "rxcycle.h"
 #include "keepalive.h"         /* wq_gateway_be                               */
 #include "keepwifi.h"          /* keepwifi_power_busy                         */
+#include "netjoin.h"           /* wq_net_icm_connect                          */
 #include "log.h"
 #include "../include/wifiturbo.h"
 #include "../include/wifiturbo_kernel_api.h"   /* wqForceReboot */
@@ -250,6 +251,18 @@ static int watchdog_thread(SceSize args, void *argp)
 		if (g_marker[0]) {
 			sceIoRemove(g_marker);
 			g_marker[0] = 0;
+		}
+		/* No link before the cycle (boot): SceShell gave up auto-connecting
+		 * while the radio was off and only retries after ~12 s. If nothing
+		 * has started a join 3 s after the radio is back (a MAC address
+		 * re-send would have), ask for one. */
+		if (!g_require_link) {
+			sceKernelDelayThread(3 * 1000 * 1000);
+			int st = -1;
+			if (sceNetCtlInetGetState(&st) == 0 && st == 0 && (sceWlanGetConfiguration() & 9)) {
+				WQ_LOGI("rxcycle: no join started after the cycle - IcmConnect");
+				wq_net_icm_connect();
+			}
 		}
 		if (g_guard_s > 0) {
 			WQ_LOGI("rxcycle: guarding %d s (reboot if down %d s in a row)", g_guard_s, RXC_GUARD_DOWN_S);
