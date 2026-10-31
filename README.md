@@ -227,8 +227,6 @@ it. *MAC address* lets the Vita use a different one on Wi-Fi.
   plugins) always starts on the Vita's own address.
 - Addresses that can't work are refused: anything that isn't 12 hex digits,
   multicast addresses (odd first byte), all zeros and all FFs.
-- Use it on networks you're allowed to use. Copying another device's address
-  to get around a network's access controls may be unlawful.
 - **Firmware:** tested on 3.60. The Wi-Fi driver changed in 3.71; the parts
   this uses are the same there, but 3.71 to 3.74 is **untested on a console**.
   If you try it, please
