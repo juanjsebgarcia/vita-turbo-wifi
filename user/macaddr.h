@@ -23,6 +23,11 @@ int wq_mac_cmd(const char *args, char *out, int outcap);
  * the caller (the keepwifi tick) never waits on a change. 0 or WQ_ERR_BUSY. */
 int wq_mac_queue(const char *line);
 
+/* Keepwifi network thread, once a second: while no MAC watcher is running
+ * (Default since boot), learn the console's own address from SceNet once
+ * connected. Cheap: nothing once it is known. */
+void wq_mac_net_tick(void);
+
 /* HUD line: 1 and the custom address while one is in use, else 0. */
 int wq_mac_hud(uint8_t mac[6]);
 
