@@ -33,3 +33,4 @@ wifiturbo_kernel:
         - wqHudRegisterProc
         - wqHudSetInGame
         - wqMacAddr
+        - wqUiReadStateEx

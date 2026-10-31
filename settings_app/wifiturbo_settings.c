@@ -6,7 +6,7 @@
  * scePafMiscLoadXmlLayout (inject our page), and the SceRegMgr get/set/info in
  * SceSystemSettingsCore (back our toggles with a private /CONFIG/WIFITURBO
  * namespace). State + actions cross to the resident SceShell core via the
- * SceWifiTurbo kernel mailbox (wqUiReadState / wqUiSubmit, see uibridge.c).
+ * SceWifiTurbo kernel mailbox (wqUiReadStateEx / wqUiSubmit, see uibridge.c).
  *
  * This module is loaded with  *NPXS10015  in ur0:tai/config.txt.
  *
@@ -267,7 +267,7 @@ static void wt_seed(void)
 	SceUInt64 now = sceKernelGetProcessTimeWide();
 	if (g_ui_init && (now - g_seed_t < WT_RESEED_US || now - g_set_t < WT_SET_SETTLE_US))
 		return;
-	if (wqUiReadState(&g_ui) >= 0)
+	if (wqUiReadStateEx(&g_ui, sizeof(g_ui)) >= 0)
 		g_ui_init = 1;
 	g_seed_t = now;
 }

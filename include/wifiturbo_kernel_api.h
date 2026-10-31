@@ -213,7 +213,9 @@ typedef struct {
 
 #define WQ_UI_CMD_MAX 64              /* command buffer size for wqUiSubmit/Drain */
 int wqUiSubmit(const char *line);     /* NPXS10015 -> queue a dispatch command */
-int wqUiReadState(WqUiState *out);    /* NPXS10015 -> read the published state */
+int wqUiReadState(WqUiState *out);    /* v0.4.1 callers: the first 40 bytes only */
+/* NPXS10015 / quick menu -> read the published state, at most `size` bytes. */
+int wqUiReadStateEx(WqUiState *out, unsigned size);
 int wqUiDrain(char *line, int cap);   /* resident  -> pop a queued command (1/0)*/
 int wqUiPublish(const WqUiState *s);  /* resident  -> publish current state    */
 

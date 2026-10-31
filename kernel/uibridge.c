@@ -63,12 +63,28 @@ int wqUiSubmit(const char *line)
 	return r;
 }
 
-/* NPXS10015 side: read the state the resident core last published. */
+/* WqUiState as v0.4.1 knew it (it ends at hudgame). A v0.4.1 quick-menu
+ * plugin, left installed after an update, still calls wqUiReadState with a
+ * buffer this size on its stack: copying the whole of today's struct there
+ * would overwrite its stack. */
+#define WQ_UI_STATE_V041 __builtin_offsetof(WqUiState, macmode)
+
+/* Read the state the resident core last published: the v0.4.1 part only. */
 int wqUiReadState(WqUiState *out)
 {
 	if (!out)
 		return WQ_ERR_ARG;
-	ksceKernelMemcpyKernelToUser(out, &g_state, sizeof(g_state));
+	ksceKernelMemcpyKernelToUser(out, &g_state, WQ_UI_STATE_V041);
+	return WQ_OK;
+}
+
+/* The same, up to `size` bytes of the caller's WqUiState (current callers pass
+ * sizeof(WqUiState), so a later, larger struct never overruns them). */
+int wqUiReadStateEx(WqUiState *out, unsigned size)
+{
+	if (!out)
+		return WQ_ERR_ARG;
+	ksceKernelMemcpyKernelToUser(out, &g_state, size < sizeof(g_state) ? size : sizeof(g_state));
 	return WQ_OK;
 }
 
