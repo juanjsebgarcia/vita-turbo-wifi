@@ -42,6 +42,7 @@
 #include "advanced.h"
 #include "keepwifi.h"
 #include "rxpreset.h"
+#include "macaddr.h"
 #include "netjoin.h"
 #include "settings_entry.h"
 #include "log.h"
@@ -189,12 +190,13 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 
 	if (!line || !line[0] || str_eq(line, "help")) {
 		put(p, end,
-		    "cmds: status|hud on/off|hud pos tl/tr/bl/br|hudgame on/off|profile maxperf/balanced/maxbatt|"
+		    "cmds: status|hud off/compact/extended|hud pos tl/tr/bl/br|hudgame on/off|profile maxperf/balanced/maxbatt|"
 		    "ht40 on/off|confirm|revert|autoreconnect on/off|keepwifi on/off|"
 		    "roam on/off|roam now|roam precheck on/off|roam status|"
 		    "rejoin|icm|icmtest|netdown|"
 		    "selftest|speedtest <ip> <port> [secs] [rcvbuf_kb]|udpsink <port> [secs]|"
-		    "log [dump]|log level <err|warn|info|debug|trace>|log clear|adv scan");
+		    "log [dump]|log level <err|warn|info|debug|trace>|log clear|adv scan|"
+		    "mac status|probe|stock|custom|random|set <addr>|cycle");
 		return WQ_OK;
 	}
 
@@ -256,10 +258,13 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 			p = put_i(p, end, pos);
 			return WQ_OK;
 		}
-		/* 'hud on|off' - the overlay: sampler thread + framebuffer draw. */
-		int on = str_eq(a, "on");
+		/* 'hud off|compact|extended' - the overlay: sampler thread +
+		 * framebuffer draw. 'on' = extended (the full HUD it always was). */
+		int compact = str_eq(a, "compact");
+		int on = compact || str_eq(a, "on") || str_eq(a, "extended");
+		wq_hud_set_compact(compact);
 		wq_hud_runtime_set(on);
-		put(p, end, on ? "hud on - overlay drawing, sampler running" : "hud off");
+		put(p, end, !on ? "hud off" : compact ? "hud compact - one line" : "hud extended");
 		return WQ_OK;
 	}
 
@@ -436,6 +441,11 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 		                             : "rxpreset: could not start");
 		return r;
 	}
+
+	/* EXPERIMENTAL: 'mac ...' - a chosen Wi-Fi MAC address (user/macaddr.c).
+	 * Not saved: a reboot comes back on the factory address. */
+	if ((a = tok_after(line, "mac")))
+		return wq_mac_cmd(a, out, outcap);
 
 	if ((a = tok_after(line, "speedtest"))) {
 		char ip[40]; int i = 0;

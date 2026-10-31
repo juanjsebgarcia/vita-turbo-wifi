@@ -113,6 +113,22 @@ enum wq_i18n_id {
 	WT_I18N_QM_BALANCED,
 	WT_I18N_QM_BATTERY,
 
+	/* EXPERIMENTAL MAC address rows (the mode list reuses ITEM_STOCK) */
+	WT_I18N_ROW_MACMODE,        /* "MAC address"              */
+	WT_I18N_ITEM_CUSTOM,        /* "Custom"                   */
+	WT_I18N_HINT_MACMODE,
+	WT_I18N_ROW_MACADDR,        /* "Custom MAC address"       */
+	WT_I18N_HINT_MACADDR,
+	WT_I18N_ROW_MACRAND,        /* "Randomize MAC address"    */
+	WT_I18N_HINT_MACRAND,
+	WT_I18N_ROW_MACCUR,         /* "Current MAC address" (read-only) */
+	WT_I18N_HINT_MACCUR,
+
+	/* HUD mode list items (Turbo Storage's wording) */
+	WT_I18N_ITEM_HUD_OFF,       /* "Off"                      */
+	WT_I18N_ITEM_HUD_COMPACT,   /* "Compact"                  */
+	WT_I18N_ITEM_HUD_EXTENDED,  /* "Extended"                 */
+
 	WT_I18N_COUNT
 };
 

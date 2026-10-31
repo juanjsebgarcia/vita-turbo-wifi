@@ -20,12 +20,14 @@
 #include "diag.h"
 #include "dispatch.h"
 #include "powerprofile.h"   /* wq_power_current_profile - HUD profile line     */
+#include "macaddr.h"        /* wq_mac_hud - HUD MAC line                       */
 #include "../settings_app/wifiturbo_i18n.h"   /* wq_i18n_lang - HUD language   */
 #include "advanced.h"
 #include "../settings_app/settings_ui.h"
 
 static int    g_sampler_run = 0;
 static SceUID g_sampler = -1;
+static volatile int g_hud_compact;   /* HUD mode: 1 = Compact, 0 = Extended */
 
 /* Sample diagnostics once a second and push to the kernel HUD renderer, with
  * the safety harness's one-line status as the HUD notice. */
@@ -40,6 +42,8 @@ static int sampler_thread(SceSize args, void *argp)
 			s.profile[sizeof(s.profile) - 1] = 0;
 			s.lang = wq_i18n_lang();   /* HUD labels follow the system language */
 			wq_safety_status(s.notice, sizeof(s.notice));
+			s.compact = (uint8_t)g_hud_compact;
+			s.mac_custom = (uint8_t)wq_mac_hud(s.mac);   /* MAC line only in Custom */
 			wqHudSetState(&s);
 		}
 		sceKernelDelayThread(1000 * 1000);
@@ -51,6 +55,11 @@ static int sampler_thread(SceSize args, void *argp)
  * the 'hud on|off' command (dispatch.c), never from module_start, so the
  * plugin boots completely inert. Idempotent: a second 'hud on' will not spawn a
  * second sampler. */
+void wq_hud_set_compact(int compact)
+{
+	g_hud_compact = compact ? 1 : 0;
+}
+
 int wq_hud_runtime_set(int on)
 {
 	if (on) {

@@ -13,6 +13,7 @@
 #include "dispatch.h"
 #include "keepwifi.h"
 #include "rxpreset.h"       /* rxpreset_boot - chip RX buffer setting */
+#include "macaddr.h"        /* wq_mac_boot - MAC address setting */
 #include "powerprofile.h"   /* wq_power_set_display_profile - HUD profile line */
 #include "persist.h"
 #include "log.h"
@@ -29,6 +30,24 @@ static int       g_settings_ready = 0;
 static int str_pre(const char *s, const char *p)
 {
 	while (*p) { if (*s++ != *p++) return 0; }
+	return 1;
+}
+
+/* 12 hex digits -> the two WqUiState words; 0 if malformed. */
+static int hex12(const char *s, int *w0, int *w1)
+{
+	unsigned b[6];
+	for (int i = 0; i < 12; i++) {
+		char c = s[i];
+		int v = (c >= '0' && c <= '9') ? c - '0' : (c >= 'A' && c <= 'F') ? c - 'A' + 10 :
+		        (c >= 'a' && c <= 'f') ? c - 'a' + 10 : -1;
+		if (v < 0)
+			return 0;
+		if (i & 1) b[i / 2] = b[i / 2] << 4 | (unsigned)v;
+		else       b[i / 2] = (unsigned)v;
+	}
+	*w0 = (int)(b[0] | b[1] << 8 | b[2] << 16 | b[3] << 24);
+	*w1 = (int)(b[4] | b[5] << 8);
 	return 1;
 }
 
@@ -50,7 +69,11 @@ static int settings_track(const char *line)
 		if (pos >= 0) g_settings.hudpos = pos;
 	}
 	else if (str_pre(line, "hudgame "))       g_settings.hudgame       = str_pre(line, "hudgame on");
-	else if (str_pre(line, "hud "))           g_settings.hud           = str_pre(line, "hud on");
+	/* 0 off, 1 Extended (what 'on' always was, so older saves keep their
+	 * HUD), 2 Compact. */
+	else if (str_pre(line, "hud "))           g_settings.hud           =
+	             str_pre(line, "hud compact") ? 2 :
+	             (str_pre(line, "hud on") || str_pre(line, "hud extended")) ? 1 : 0;
 	else if (str_pre(line, "autoreconnect ")) g_settings.autoreconnect = str_pre(line, "autoreconnect on");
 	else if (str_pre(line, "ht40 "))          g_settings.ht40          = str_pre(line, "ht40 on");
 	/* only 'roam on|off' - 'roam now/status/precheck' must not clear it */
@@ -60,6 +83,17 @@ static int settings_track(const char *line)
 	else if (str_pre(line, "profile "))       g_settings.profile       =
 	             str_pre(line, "profile maxperf") ? 0 :
 	             str_pre(line, "profile balanced") ? 1 : 2;
+	/* MAC address: user/macaddr.c reports its decisions in this form (the
+	 * 'mac custom|random|set' commands themselves are not settings). */
+	else if (str_pre(line, "mac state ") && (line[10] == '0' || line[10] == '1') && line[11] == ' ') {
+		int w0, w1;
+		g_settings.macmode = line[10] - '0';
+		if (hex12(line + 12, &w0, &w1)) { g_settings.mac0 = w0; g_settings.mac1 = w1; }
+	}
+	else if (str_pre(line, "mac factory ")) {
+		int w0, w1;
+		if (hex12(line + 12, &w0, &w1)) { g_settings.fmac0 = w0; g_settings.fmac1 = w1; }
+	}
 	else if (str_pre(line, "rxpreset stock") || str_pre(line, "rxpreset enhanced") ||
 	         str_pre(line, "rxpreset maximum"))
 	                                          g_settings.rxring        =
@@ -94,7 +128,8 @@ void wq_settings_boot(void)
 	wqHudSetPos(g_settings.hudpos);   /* set the corner before the overlay arms  */
 	wqHudRegisterProc(WQ_HUD_PROC_SHELL);   /* we run in SceShell: draw over it  */
 	wqHudSetInGame(g_settings.hudgame);
-	wq_dispatch_exec(g_settings.hud ? "hud on" : "hud off", rep, sizeof(rep));
+	wq_dispatch_exec(g_settings.hud == 2 ? "hud compact" : g_settings.hud ? "hud extended"
+	                 : "hud off", rep, sizeof(rep));
 	wq_dispatch_exec(g_settings.autoreconnect ? "autoreconnect on" : "autoreconnect off", rep, sizeof(rep));
 	wq_dispatch_exec(g_settings.roam ? "roam on" : "roam off", rep, sizeof(rep));
 	wq_dispatch_exec(g_settings.devmode ? "devmode on" : "devmode off", rep, sizeof(rep));
@@ -104,6 +139,10 @@ void wq_settings_boot(void)
 	/* Chip RX buffer: the chip booted on the stock image; re-apply the saved
 	 * preset with one radio power-cycle once Wi-Fi is up (user/rxpreset.c). */
 	rxpreset_boot(g_settings.rxring);
+	/* MAC address: the chip booted on its own address; a saved custom one is
+	 * sent once the link is up, then after every chip power-up. */
+	wq_mac_boot(g_settings.macmode, (unsigned)g_settings.mac0, (unsigned)g_settings.mac1,
+	            (unsigned)g_settings.fmac0, (unsigned)g_settings.fmac1, g_settings.rxring != 0);
 	wqUiPublish(&g_settings);
 	WQ_LOGI("persist: applied saved settings at boot");
 }

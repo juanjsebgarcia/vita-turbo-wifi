@@ -7,9 +7,11 @@
  * included) so the chip loads it. No reboot is needed.
  *
  * Boot: the chip already runs the stock firmware when plugins start, so the
- * saved preset (settings.bin, loaded by wq_settings_boot) is re-applied once
- * Wi-Fi is up, with one radio power-cycle. If Wi-Fi is off, only the cached
- * image is edited; the chip picks it up the next time the radio powers on.
+ * saved preset (settings.bin, loaded by wq_settings_boot) is re-applied with
+ * one radio power-cycle as soon as the radio is on - before the first join
+ * where possible, so the console connects once instead of connecting,
+ * dropping and connecting again. If Wi-Fi is off, only the cached image is
+ * edited; the chip picks it up the next time the radio powers on.
  *
  * Boot-loop guard: RXP_MARKER is written before every power-cycle and removed
  * when it succeeds. If the cycle's watchdog had to reboot, the marker survives;
@@ -77,8 +79,15 @@ static void run(int level, int from_boot)
 		}
 		if (level == 0)
 			return;                     /* the chip already runs stock after boot */
-		for (int s = 0; s < RXP_BOOT_WAIT_S && !link_up(); s++)
+		/* Wait for the radio, not the link: cycling before the first join
+		 * means a single connect. (A link that is already up is fine too:
+		 * the cycle then requires it back, as before.) */
+		int s = 0;
+		while (s < RXP_BOOT_WAIT_S && !link_up() && !(sceWlanGetConfiguration() & 9)) {
 			sceKernelDelayThread(1000 * 1000);
+			s++;
+		}
+		sceKernelDelayThread(1000 * 1000);   /* let the driver settle */
 	}
 
 	WqRxRingStats st;

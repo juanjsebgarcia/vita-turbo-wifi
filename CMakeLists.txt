@@ -45,6 +45,7 @@ add_executable(wifiturbo_kernel
   kernel/ht40patch.c
   kernel/wlanbt.c
   kernel/rxring.c
+  kernel/macaddr.c
   kernel/roamassist.c
   kernel/psprofile.c
   kernel/uibridge.c
@@ -105,6 +106,7 @@ add_executable(wifiturbo
   user/netjoin.c
   user/rxcycle.c
   user/rxpreset.c
+  user/macaddr.c
   user/persist.c
   user/settings_entry.c
   settings_app/wifiturbo_settings.c   # Settings-app hooks (run only in NPXS10015)

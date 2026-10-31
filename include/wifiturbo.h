@@ -22,7 +22,7 @@
 
 /* Release version. The .yml module versions carry major.minor (0.1); bump all
  * three together. Logged in both modules' init banner so a log pins the build. */
-#define WQ_VERSION_STR    "0.4.1"
+#define WQ_VERSION_STR    "0.5.0"
 
 #define WQ_SSID_MAX               32          /* each SSID 1..32 chars          */
 
@@ -74,6 +74,9 @@ typedef struct WqHudState {
 	char     profile[16];      /* active power/latency profile name           */
 	char     notice[40];       /* transient status line (e.g. revert armed)   */
 	int32_t  lang;             /* system language (wq_i18n_lang) for HUD i18n  */
+	uint8_t  compact;          /* HUD mode: 1 = Compact (one line), 0 = Extended */
+	uint8_t  mac_custom;       /* 1 = a custom Wi-Fi MAC address is in use     */
+	uint8_t  mac[6];           /* ... this one (shown as a HUD line)           */
 } WqHudState;
 
 /* HUD overlay screen corner. Config (not per-sample telemetry): set with

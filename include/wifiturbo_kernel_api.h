@@ -91,6 +91,35 @@ typedef struct WqRxRingStats {
 int wqRxRing(int op, WqRxRingStats *out);   /* WQ_RXRING_OP_*; WQ_OK or WQ_ERR_* */
 int wqForceReboot(void);   /* EXPERIMENTAL: syscon reset, rxcycle watchdog last resort */
 
+/* EXPERIMENTAL: a chosen MAC address for the Wi-Fi interface (kernel/
+ * macaddr.c). SET goes through the driver's own get-MAC control call with its
+ * GET turned into a SET; on success the driver's copy and SceNetPs's wlan0
+ * follow. The chip returns to its factory address at every power-up, so the
+ * caller re-sends after each one (powerups counts them). mac0 = bytes 0..3,
+ * mac1 = bytes 4..5, as for wqRoamAssistArm. Always fills *out. */
+#define WQ_MAC_OP_STATUS    0   /* hooks installed on first call; read state   */
+#define WQ_MAC_OP_LIVE      1   /* ask the chip now; fills live/last_rc         */
+#define WQ_MAC_OP_SET       2   /* SET mac0/mac1 now (link should be down)      */
+
+typedef struct WqMacStatus {
+	uint32_t hooked;        /* both hooks installed                            */
+	uint32_t ctx_seen;      /* driver context known (any command since boot)   */
+	uint32_t ctl_check;     /* 0 ok; 1 no layout/ctx, 2 desc[0x14] is not the
+	                         * control entry, 3 desc+0x6c is not the ctx       */
+	uint32_t chain;         /* 0 = ctx->wlan0 walk OK, else the failing step   */
+	uint32_t powerups;      /* chip power-ups seen since the hooks went in     */
+	uint32_t sets;          /* SETs the chip was sent                          */
+	uint32_t have_factory;
+	int32_t  last_rc;       /* control call return of the last LIVE/SET        */
+	uint8_t  drv[6];        /* driver's copy now (ctx+0x728)                   */
+	uint8_t  lladdr[6];     /* SceNetPs wlan0 link-level address now           */
+	uint8_t  descmac[6];    /* address in the attach descriptor now            */
+	uint8_t  factory[6];    /* the console's own address                       */
+	uint8_t  live[6];       /* address the chip reported in the last LIVE/SET  */
+	uint8_t  pad[2];
+} WqMacStatus;
+int wqMacAddr(int op, unsigned mac0, unsigned mac1, WqMacStatus *out);
+
 /* ---- HUD renderer (read-only overlay) ----------------------------------- */
 
 /* Enable/disable the sceDisplaySetFrameBuf overlay hook. */
@@ -151,7 +180,7 @@ int wqChipObserveGetLink(WqLinkInternals *out);
  * wqUiPublish from the resident SceShell module (off the keepwifi tick). */
 typedef struct {
 	int keepwifi;
-	int hud;
+	int hud;        /* 0 off, 1 Extended, 2 Compact (1 = the old 'on')     */
 	int autoreconnect;
 	int roam;
 	int ht40;
@@ -161,9 +190,12 @@ typedef struct {
 	int rxring;     /* EXPERIMENTAL Wi-Fi receive buffer: 0 default / 1 enhanced
 	                 * (127 slots) / 2 maximum (149). */
 	int hudpos;     /* WQ_HUD_POS_* - which screen corner the overlay draws in. */
-	int hudgame;    /* In-game HUD: 1 = also draw over games and apps. Default 0.
-	                 * Last field: a settings.bin from an older build is one to
-	                 * three ints shorter and the missing tail loads as 0. */
+	int hudgame;    /* In-game HUD: 1 = also draw over games and apps. Default 0. */
+	int macmode;    /* EXPERIMENTAL MAC address: 0 stock / 1 custom.           */
+	int mac0, mac1; /* custom address: bytes 0..3, bytes 4..5 (wqMacAddr form) */
+	int fmac0, fmac1; /* the console's own address, same form; 0 = not known
+	                 * yet. Last fields: a settings.bin from an older build is
+	                 * shorter and the missing tail loads as 0. */
 } WqUiState;
 
 #define WQ_UI_CMD_MAX 64              /* command buffer size for wqUiSubmit/Drain */

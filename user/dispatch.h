@@ -28,5 +28,6 @@ int  wq_dispatch_exec(const char *line, char *out, int outcap);
  * bad renderer can never wedge the cold boot. Called by the 'hud on|off'
  * command. Returns WQ_OK. */
 int  wq_hud_runtime_set(int on);
+void wq_hud_set_compact(int compact);   /* 1 = Compact (one line), 0 = Extended */
 
 #endif /* WIFITURBO_DISPATCH_H */
