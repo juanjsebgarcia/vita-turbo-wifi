@@ -220,23 +220,10 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 		n++;
 	}
 
-	/* line 4: profile + last failure reason (human-ish) */
+	/* line 4: profile */
 	p = lines[n]; end = p + HUD_LINE_CHARS;
 	p = put_str(p, end, hud_tr(s->lang, HTR_PROFILE)); p = put_str(p, end, " ");
 	p = put_str(p, end, s->profile[0] ? s->profile : "-");
-	if (s->last_result) {
-		p = put_str(p, end, "  "); p = put_str(p, end, hud_tr(s->lang, HTR_LAST)); p = put_str(p, end, " ");
-		switch ((unsigned)s->last_result) {
-		case WQ_REASON_DEAUTH:       p = put_str(p, end, "DEAUTH"); break;
-		case WQ_REASON_BEACON_LOST:  p = put_str(p, end, "BCNLOST"); break;
-		case WQ_REASON_DHCP_TIMEOUT: p = put_str(p, end, "DHCP-TO"); break;
-		default:
-			p = put_str(p, end, "0x");
-			p = put_hex2(p, end, ((unsigned)s->last_result >> 8) & 0xFF);
-			p = put_hex2(p, end, (unsigned)s->last_result & 0xFF);
-			break;
-		}
-	}
 	*p = 0;
 	if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
 	n++;

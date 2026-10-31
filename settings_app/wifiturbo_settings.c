@@ -348,26 +348,27 @@ static void wt_mac_text(int w0, int w1, char *out, int cap)
 
 #define WT_MAC_RECENT_US  6000000ull   /* a change made here counts as pending this long */
 
-/* The Current MAC address row: the address the setting asks for (the custom
- * one, or the console's own) if it is in use; the same with a "pending" mark
- * while a change to it is under way (SceShell publishes that, and a change
- * just made on this page counts too, before SceShell has seen it); else the
- * address actually in use, marked "not applied". Returns the mark's i18n id,
- * or -1 for none. */
+/* The Current MAC address row, read once when the row is built (nothing
+ * re-reads it while the page is open): the address the setting asks for (the
+ * custom one, or the console's own), so a change made here shows at once
+ * (a change still under way, published by SceShell or just made on this
+ * page, shows unmarked too); but if that address is not in use and no change
+ * is under way, the address actually in use, marked "not applied". Returns the
+ * mark's i18n id, or -1 for none. */
 static int wt_mac_current(char *out, int cap)
 {
 	wt_seed();
 	int want0 = g_ui.macmode == 1 ? g_ui.mac0 : g_ui.fmac0;
 	int want1 = g_ui.macmode == 1 ? g_ui.mac1 : g_ui.fmac1;
 	int known = g_ui.macuse0 || g_ui.macuse1;
-	if (!known || (g_ui.macuse0 == want0 && g_ui.macuse1 == want1)) {
-		wt_mac_text(want0, want1, out, cap);
-		return -1;
+	if (!want0 && !want1) {                       /* own address not known yet */
+		want0 = g_ui.macuse0;
+		want1 = g_ui.macuse1;
 	}
 	int recent = sceKernelGetProcessTimeWide() - g_set_t < WT_MAC_RECENT_US;
-	if (g_ui.macbusy || recent) {
+	if (!known || (g_ui.macuse0 == want0 && g_ui.macuse1 == want1) || g_ui.macbusy || recent) {
 		wt_mac_text(want0, want1, out, cap);
-		return WT_I18N_MAC_PENDING;
+		return -1;
 	}
 	wt_mac_text(g_ui.macuse0, g_ui.macuse1, out, cap);
 	return WT_I18N_MAC_NOTAPPLIED;

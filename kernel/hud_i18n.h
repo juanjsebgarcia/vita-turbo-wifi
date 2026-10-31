@@ -21,7 +21,6 @@ enum hud_tr_tok {
 	HTR_DOWN,         /* link down / disconnected */
 	HTR_CONNECTING,   /* associating              */
 	HTR_PROFILE,      /* "PROFILE" label          */
-	HTR_LAST,         /* "LAST" (last drop reason)*/
 	HTR_PENDING,      /* MAC: change under way    */
 	HTR_NOTAPPLIED,   /* MAC: custom one not taken*/
 	HTR_COUNT

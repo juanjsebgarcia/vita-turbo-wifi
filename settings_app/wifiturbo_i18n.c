@@ -1177,29 +1177,6 @@ static const char *const g_tbl[WT_I18N_COUNT][WT_LANG_COUNT] = {
 	"Extended",
 	"Genişletilmiş"
 },
-/* WT_I18N_MAC_PENDING - "pending" */
-{
-	"保留中",
-	"pending",
-	"en attente",
-	"pendiente",
-	"ausstehend",
-	"in attesa",
-	"bezig",
-	"pendente",
-	"ожидание",
-	"대기 중",
-	"等待中",
-	"等待中",
-	"odottaa",
-	"väntar",
-	"afventer",
-	"venter",
-	"oczekuje",
-	"pendente",
-	"pending",
-	"bekliyor"
-},
 /* WT_I18N_MAC_NOTAPPLIED - "not applied" */
 {
 	"未適用",
