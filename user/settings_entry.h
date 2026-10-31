@@ -19,4 +19,9 @@ void wq_settings_boot(void);
  * internal) updates the one source of truth. No-op for non-setting commands. */
 void wq_settings_note(const char *line);
 
+/* user/macaddr.c only: fold its "mac state ..." / "mac factory ..." decision
+ * lines. wq_settings_note ignores those, so no command surface (:1339) can
+ * write the saved address directly. */
+void wq_settings_note_mac(const char *line);
+
 #endif /* WIFITURBO_SETTINGS_ENTRY_H */

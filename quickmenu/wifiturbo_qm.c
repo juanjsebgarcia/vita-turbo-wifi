@@ -125,18 +125,29 @@ static void on_menu_open(const char *id)
 		show_profile(st.profile);
 }
 
+/* wqUiSubmit copies WQ_UI_CMD_MAX bytes from its argument: never pass it a
+ * shorter string literal. */
+static void submit(const char *cmd)
+{
+	char line[WQ_UI_CMD_MAX];
+	int n = 0;
+	while (cmd[n] && n < WQ_UI_CMD_MAX - 1) { line[n] = cmd[n]; n++; }
+	while (n < WQ_UI_CMD_MAX) line[n++] = 0;
+	wqUiSubmit(line);
+}
+
 static void on_keep_toggle(const char *id, SceInt32 hash, SceInt32 event, void *user)
 {
 	(void)id; (void)hash; (void)event; (void)user;
 	int on = QuickMenuRebornGetCheckboxValue(ID_KEEP_BOX) > 0;   /* live widget: ticked */
-	wqUiSubmit(on ? "keepwifi on" : "keepwifi off");
+	submit(on ? "keepwifi on" : "keepwifi off");
 }
 
 static void on_profile(const char *id, SceInt32 hash, SceInt32 event, void *user)
 {
 	(void)id; (void)hash; (void)event;
 	int prof = (int)user;
-	wqUiSubmit(k_prof_cmd[prof]);   /* reconnects Wi-Fi for a few seconds */
+	submit(k_prof_cmd[prof]);       /* reconnects Wi-Fi for a few seconds */
 	show_profile(prof);             /* the published state follows within 1 s */
 }
 

@@ -19,6 +19,10 @@ void wq_mac_random(uint8_t mac[6], const uint8_t factory[6]);
 /* Run one 'mac ...' command (the text after "mac "); writes a reply line. */
 int wq_mac_cmd(const char *args, char *out, int outcap);
 
+/* Settings page: queue one 'mac ...' command line for the watcher thread, so
+ * the caller (the keepwifi tick) never waits on a change. 0 or WQ_ERR_BUSY. */
+int wq_mac_queue(const char *line);
+
 /* HUD line: 1 and the custom address while one is in use, else 0. */
 int wq_mac_hud(uint8_t mac[6]);
 

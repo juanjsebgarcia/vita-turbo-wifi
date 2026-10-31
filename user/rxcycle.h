@@ -21,8 +21,13 @@ int rxcycle_start_ex(int guard_min, int require_link, const char *marker);
 void rxcycle_guard_stop(void);
 
 /* 0 idle, 1 radio off, 2 radio on / waiting for the link, 3 rebooting,
- * 4 guarding. */
+ * 4 guarding, 5 watching the gateway round trip after the link is back (a new
+ * cycle may start then). */
 int rxcycle_phase(void);
+
+/* 1 when no cycle is running, or its worker has finished turning the radio
+ * (and Bluetooth) back on: the chip is no longer in a power transition. */
+int rxcycle_settled(void);
 
 /* 1 if the last cycle saw SceWlanBt report the chip powered off (so the
  * firmware was reloaded on power-up), else 0. */

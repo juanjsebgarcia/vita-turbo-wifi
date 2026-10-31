@@ -42,6 +42,7 @@ static const char *const k_name[3] = { "stock", "enhanced", "maximum" };
 
 static volatile int g_busy;
 static int g_req_level, g_req_boot;
+static volatile int g_boot_state;           /* rxpreset_boot_state()       */
 
 static int link_up(void)
 {
@@ -124,6 +125,8 @@ static void run(int level, int from_boot)
 static int preset_thread(SceSize args, void *argp)
 {
 	run(g_req_level, g_req_boot);
+	if (g_req_boot)
+		g_boot_state = rxcycle_phase() != 0 ? 2 : 3;
 	g_busy = 0;
 	return sceKernelExitDeleteThread(0);
 }
@@ -153,8 +156,16 @@ int rxpreset_set(int level)
 
 void rxpreset_boot(int level)
 {
-	if (start(level, 1) != WQ_OK)
+	g_boot_state = 1;
+	if (start(level, 1) != WQ_OK) {
+		g_boot_state = 3;
 		WQ_LOGW("rxpreset: boot apply not started");
+	}
+}
+
+int rxpreset_boot_state(void)
+{
+	return g_boot_state;
 }
 
 int rxpreset_level(const char *name)

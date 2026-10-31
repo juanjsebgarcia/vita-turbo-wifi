@@ -7,6 +7,7 @@
  * setting-changing command into the persisted state (wq_settings_note) and
  * restores the saved settings at boot (wq_settings_boot).
  */
+#include <psp2/kernel/threadmgr.h>   /* settings mutex */
 #include <string.h>
 
 #include "settings_entry.h"
@@ -26,6 +27,30 @@
  * published so the Settings UI reflects it. */
 static WqUiState g_settings;
 static int       g_settings_ready = 0;
+
+/* g_settings is changed from the keepwifi tick (Settings mailbox), the :1339
+ * thread and the MAC address threads: one recursive lock around every fold,
+ * save and publish. */
+static SceUID g_set_mtx = -1;
+
+static void set_lock(void)
+{
+	if (g_set_mtx < 0) {               /* first caller creates it; a racing one drops its own */
+		SceUID m = sceKernelCreateMutex("WqSettingsMtx", SCE_KERNEL_MUTEX_ATTR_RECURSIVE, 0, NULL);
+		SceUID none = -1;
+		if (m >= 0 && !__atomic_compare_exchange_n(&g_set_mtx, &none, m, 0, __ATOMIC_SEQ_CST,
+		                                           __ATOMIC_SEQ_CST))
+			sceKernelDeleteMutex(m);
+	}
+	if (g_set_mtx >= 0)
+		sceKernelLockMutex(g_set_mtx, 1, NULL);
+}
+
+static void set_unlock(void)
+{
+	if (g_set_mtx >= 0)
+		sceKernelUnlockMutex(g_set_mtx, 1);
+}
 
 static int str_pre(const char *s, const char *p)
 {
@@ -53,7 +78,7 @@ static int hex12(const char *s, int *w0, int *w1)
 
 /* Fold a dispatch command that changes a setting into g_settings. Returns 1 if
  * a value actually changed. */
-static int settings_track(const char *line)
+static int settings_track(const char *line, int mac_ok)
 {
 	WqUiState b = g_settings;
 	if      (str_pre(line, "keepwifi "))      g_settings.keepwifi      = str_pre(line, "keepwifi on");
@@ -85,6 +110,7 @@ static int settings_track(const char *line)
 	             str_pre(line, "profile balanced") ? 1 : 2;
 	/* MAC address: user/macaddr.c reports its decisions in this form (the
 	 * 'mac custom|random|set' commands themselves are not settings). */
+	else if (str_pre(line, "mac ") && !mac_ok)   return 0;
 	else if (str_pre(line, "mac state ") && (line[10] == '0' || line[10] == '1') && line[11] == ' ') {
 		int w0, w1;
 		g_settings.macmode = line[10] - '0';
@@ -107,14 +133,26 @@ static int settings_track(const char *line)
  * state. Called from wq_dispatch_exec, so the Settings UI, the :1339 surface and
  * any internal caller all update + persist + publish identically - single source
  * of truth. */
-void wq_settings_note(const char *line)
+static void note(const char *line, int mac_ok)
 {
+	set_lock();
 	if (!g_settings_ready) { wq_persist_load(&g_settings); g_settings_ready = 1; }
-	if (settings_track(line)) {
+	if (settings_track(line, mac_ok)) {
 		wq_persist_save(&g_settings);
 		wqUiPublish(&g_settings);
 		WQ_LOGI("settings: state updated+saved via '%s'", line);
 	}
+	set_unlock();
+}
+
+void wq_settings_note(const char *line)
+{
+	note(line, 0);
+}
+
+void wq_settings_note_mac(const char *line)
+{
+	note(line, 1);
 }
 
 /* Boot: load persisted settings and re-apply them, then publish. Called from
@@ -122,8 +160,10 @@ void wq_settings_note(const char *line)
 void wq_settings_boot(void)
 {
 	char rep[128];
+	set_lock();
 	wq_persist_load(&g_settings);
 	g_settings_ready = 1;
+	set_unlock();
 	wq_dispatch_exec(g_settings.keepwifi ? "keepwifi on" : "keepwifi off", rep, sizeof(rep));
 	wqHudSetPos(g_settings.hudpos);   /* set the corner before the overlay arms  */
 	wqHudRegisterProc(WQ_HUD_PROC_SHELL);   /* we run in SceShell: draw over it  */
@@ -143,7 +183,9 @@ void wq_settings_boot(void)
 	 * sent once the link is up, then after every chip power-up. */
 	wq_mac_boot(g_settings.macmode, (unsigned)g_settings.mac0, (unsigned)g_settings.mac1,
 	            (unsigned)g_settings.fmac0, (unsigned)g_settings.fmac1, g_settings.rxring != 0);
+	set_lock();
 	wqUiPublish(&g_settings);
+	set_unlock();
 	WQ_LOGI("persist: applied saved settings at boot");
 }
 
@@ -153,12 +195,20 @@ void wq_settings_boot(void)
  * so the Settings toggles reflect reality. */
 void wq_settings_pump(void)
 {
+	set_lock();
 	if (!g_settings_ready) { wq_persist_load(&g_settings); g_settings_ready = 1; }
+	set_unlock();
 
 	char line[WQ_UI_CMD_MAX], rep[256];
 	while (wqUiDrain(line, sizeof(line))) {         /* drain the WHOLE ring       */
 		line[WQ_UI_CMD_MAX - 1] = 0;
 		WQ_LOGI("settings: mailbox cmd '%s'", line);
+		/* A MAC address change can take seconds: it runs on the MAC watcher
+		 * thread, so this tick (which also handles sleep) never waits. */
+		if (str_pre(line, "mac ")) {
+			wq_mac_queue(line);
+			continue;
+		}
 		/* exec folds the change into g_settings + persists via wq_settings_note,
 		 * the same path the :1339 surface uses - one source of truth. */
 		wq_dispatch_exec(line, rep, sizeof(rep));
@@ -176,5 +226,7 @@ void wq_settings_pump(void)
 			}
 		}
 	}
+	set_lock();
 	wqUiPublish(&g_settings);                      /* periodic reflect           */
+	set_unlock();
 }

@@ -125,3 +125,14 @@ int wlanbt_seg_contains(int seg, uintptr_t addr, uint32_t len)
 		return 0;
 	return module_get_offset(KERNEL_PID, modid, seg, addr - base + len - 1, &last) >= 0;
 }
+
+int wlanbt_power_word(unsigned *out)
+{
+	SceUID modid = ksceKernelSearchModuleByName("SceWlanBt");
+	uintptr_t seg1 = 0;
+	if (modid < 0 || module_get_offset(KERNEL_PID, modid, 1, 0, &seg1) < 0 || !seg1 ||
+	    !wlanbt_seg_contains(1, seg1 + 4, 4))
+		return WQ_ERR_RESOLVE;
+	*out = *(const volatile uint32_t *)(seg1 + 4);
+	return WQ_OK;
+}

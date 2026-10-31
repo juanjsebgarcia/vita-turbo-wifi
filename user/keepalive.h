@@ -8,4 +8,7 @@
  */
 void keepalive_tick(void);   /* call once per second from the keepwifi worker */
 
+/* The default gateway, network order, or 0 when there is none. */
+unsigned wq_gateway_be(void);
+
 #endif /* WQ_KEEPALIVE_H */

@@ -9,9 +9,17 @@
  *
  * The chip comes back on its factory address at every power-up (Wi-Fi off/on,
  * resume) and the driver no longer asks it, so a watcher re-sends the custom
- * address after each one, and boot sends it once the link is up.
+ * address after each one, and boot sends it once the link is up. In Default,
+ * a power-up after a custom address leaves the driver's copies on the custom
+ * one, so the watcher sends the console's own address once then.
  *
- * Commands (dispatch.c, from the Settings page and :1339):
+ * A console that stays on Default never loads the kernel hooks: its own
+ * address is read from SceNet. Nothing is sent while the radio is off or
+ * power-cycling, or the Vita is going to sleep; a refused change is retried
+ * a few times, further apart each time, then left until the next power-up.
+ *
+ * Commands (dispatch.c, from :1339; the Settings page queues them for the
+ * watcher thread, wq_mac_queue, so the keepwifi tick never waits on them):
  *   mac status | probe | stock | custom | random | set <addr> | cycle
  * The chosen mode and address are saved through wq_settings_note as
  * "mac state <0|1> <12 hex>"; the console's own address as "mac factory <12 hex>".
@@ -25,8 +33,11 @@
 
 #include "macaddr.h"
 #include "rxcycle.h"
+#include "rxpreset.h"                 /* rxpreset_boot_state */
 #include "netjoin.h"
-#include "settings_entry.h"           /* wq_settings_note */
+#include "keepwifi.h"                 /* hold reconnects, sleep in progress */
+#include "dispatch.h"                 /* wq_dispatch_exec (queued commands) */
+#include "settings_entry.h"           /* wq_settings_note_mac */
 #include "log.h"
 #include "../include/wifiturbo.h"
 #include "../include/wifiturbo_kernel_api.h"
@@ -35,6 +46,10 @@ extern int sceWlanGetConfiguration(void);   /* NID 0x70AF9BD6; &9 = radio on */
 
 #define MAC_BOOT_WAIT_S   30                /* boot: wait this long for a power-up */
 #define MAC_CTX_POLLS     20                /* RSSI reads to show the driver ctx */
+#define MAC_RETRIES       6                 /* refused changes retried this often */
+#define MAC_RETRY_MAX_S   60                /* 5, 10, 20, 40, 60, 60 s apart      */
+#define MAC_QUEUE         8                 /* Settings commands waiting          */
+#define MAC_SET_WINDOW_US (8 * 1000 * 1000) /* chip busy/initialising: retry this long */
 
 static int hexval(char c)
 {
@@ -149,6 +164,12 @@ void wq_mac_random(uint8_t m[6], const uint8_t factory[6])
 	} while (!memcmp(m, factory, 6));
 }
 
+/* wqMacAddr with its WQ_ERR_* restored (wq_kret). */
+static int kmac(int op, unsigned m0, unsigned m1, WqMacStatus *st)
+{
+	return wq_kret(wqMacAddr(op, m0, m1, st));
+}
+
 static int netctl_state(void)
 {
 	int st = -1;
@@ -160,6 +181,38 @@ static int radio_on(void)
 	return (sceWlanGetConfiguration() & 9) != 0;
 }
 
+/* Safe to start a driver call: the radio is on, no power-cycle is turning it
+ * (or Bluetooth) off or back on, and the Vita is not going to sleep. The
+ * kernel also refuses while the chip is powering up (WQ_ERR_BUSY). */
+static int can_send(void)
+{
+	return radio_on() && rxcycle_settled() && !keepwifi_power_busy();
+}
+
+/* Worth trying again later (retry_tick). */
+static int retryable(int r)
+{
+	return r == WQ_ERR_CHIP || r == WQ_ERR_BUSY || r == WQ_ERR_NOT_READY;
+}
+
+/* Take the link down and keep it down: 0 once netctl reports 0, else
+ * WQ_ERR_NOT_READY (the SET never goes out under a live or starting join). */
+static int link_down(void)
+{
+	for (int tries = 0; tries < 2; tries++) {
+		if (netctl_state() <= 0)                 /* down (or netctl unreadable) */
+			return WQ_OK;
+		wq_net_disconnect();
+		for (int i = 0; i < 40 && netctl_state() > 0; i++)
+			sceKernelDelayThread(200 * 1000);
+	}
+	if (netctl_state() <= 0)
+		return WQ_OK;
+	WQ_LOGW("mac: netctl still reports state %d after the disconnect - not sending",
+	        netctl_state());
+	return WQ_ERR_NOT_READY;
+}
+
 /* ---- state ---------------------------------------------------------------- */
 
 static SceUID            g_mtx = -1;
@@ -168,6 +221,11 @@ static uint8_t           g_custom[6];
 static uint8_t           g_saved_factory[6];
 static volatile uint32_t g_applied_powerups;
 static volatile int      g_retry;              /* last SET failed: retry      */
+static int               g_retry_n;            /* retries so far              */
+static SceInt64          g_retry_at;           /* next one, process time (us) */
+static volatile unsigned g_watch_ticks;        /* watcher loops (mac status)  */
+static char              g_queue[MAC_QUEUE][WQ_UI_CMD_MAX];
+static volatile unsigned g_q_head, g_q_tail;
 static volatile int      g_watch_started, g_job_busy;
 static uint8_t           g_job_mac[6];
 static volatile int      g_job_boot;
@@ -179,15 +237,24 @@ static void save_state(void)
 	char line[40], *p = line, *end = line + sizeof(line);
 	p = put(p, end, g_mode ? "mac state 1 " : "mac state 0 ");
 	put_mac_sep(p, end, g_custom, 0);
-	wq_settings_note(line);
+	wq_settings_note_mac(line);
+}
+
+/* A new change, or the mode moved on: start the retry count again. */
+static void retry_reset(void)
+{
+	g_retry = 0;
+	g_retry_n = 0;
+	g_retry_at = 0;
 }
 
 /* The kernel only learns the driver ctx once a chip command has gone through
- * the send helper. Reading the RSSI makes the driver send one. */
+ * the send helper. Reading the RSSI makes the driver send one. Installs the
+ * hooks if they are not in yet. */
 static int ensure_ctx(WqMacStatus *st)
 {
 	for (int i = 0; i < MAC_CTX_POLLS; i++) {
-		if (wqMacAddr(WQ_MAC_OP_STATUS, 0, 0, st) == WQ_OK && st->ctx_seen)
+		if (kmac(WQ_MAC_OP_HOOK, 0, 0, st) == WQ_OK && st->ctx_seen)
 			return WQ_OK;
 		SceNetCtlInfo info;
 		sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_RSSI_DBM, &info);
@@ -198,54 +265,79 @@ static int ensure_ctx(WqMacStatus *st)
 
 /* Remember the console's own address (shown on the Settings page while the
  * mode is Stock, and the base for Randomize). */
-static void note_factory(const WqMacStatus *st)
+static void note_factory_mac(const uint8_t *f)
 {
-	if (!st->have_factory || !memcmp(st->factory, g_saved_factory, 6))
+	if (!memcmp(f, g_saved_factory, 6))
 		return;
-	memcpy(g_saved_factory, st->factory, 6);
+	memcpy(g_saved_factory, f, 6);
 	char line[40], *p = line, *end = line + sizeof(line);
 	p = put(p, end, "mac factory ");
-	put_mac_sep(p, end, st->factory, 0);
-	wq_settings_note(line);
+	put_mac_sep(p, end, f, 0);
+	wq_settings_note_mac(line);
 }
 
-/* Drop the link, SET the address, rejoin. Serialised. */
+static void note_factory(const WqMacStatus *st)
+{
+	if (st->have_factory)
+		note_factory_mac(st->factory);
+}
+
+/* Drop the link, SET the address, rejoin. Serialised. The reconnect watcher
+ * is held off meanwhile, so nothing rejoins on the old address mid-change. */
 static int apply(const uint8_t *m, const char *why)
 {
 	WqMacStatus st;
-	int was_connected = 0;
+	int tries = 0;
 	memset(&st, 0, sizeof(st));
 	if (g_mtx >= 0) sceKernelLockMutex(g_mtx, 1, NULL);
-	int r = ensure_ctx(&st);
+	int r = can_send() ? ensure_ctx(&st) : WQ_ERR_NOT_READY;
 	if (r == WQ_OK) {
 		note_factory(&st);
-		was_connected = netctl_state() == 3;
-		if (was_connected) {
-			wq_net_disconnect();
-			for (int i = 0; i < 40 && netctl_state() == 3; i++)
-				sceKernelDelayThread(200 * 1000);
-		}
+		keepwifi_hold_reconnect(1);
 		unsigned m0, m1;
 		split(m, &m0, &m1);
-		for (int i = 0; i < 80; i++) {              /* refused while busy/initialising */
-			r = wqMacAddr(WQ_MAC_OP_SET, m0, m1, &st);
-			if (r == WQ_OK || r == WQ_ERR_ARG || r == WQ_ERR_RESOLVE)
+		/* Only a chip that is busy or still initialising is retried here, for
+		 * MAC_SET_WINDOW_US; a refusal (CHIP) goes to retry_tick. The link is
+		 * checked down before every attempt: SceShell may start its own join
+		 * meanwhile, and the address must not change under an association. */
+		SceInt64 until = (SceInt64)sceKernelGetProcessTimeWide() + MAC_SET_WINDOW_US;
+		for (;;) {
+			if (!can_send()) {
+				r = WQ_ERR_NOT_READY;               /* radio off, cycling, or sleeping */
+				break;
+			}
+			r = link_down();
+			if (r != WQ_OK)
+				break;
+			r = kmac(WQ_MAC_OP_SET, m0, m1, &st);
+			tries++;
+			if ((r != WQ_ERR_BUSY && r != WQ_ERR_NOT_READY) ||
+			    (SceInt64)sceKernelGetProcessTimeWide() >= until)
 				break;
 			sceKernelDelayThread(250 * 1000);
 		}
-		/* Always kick a join: after a wake or radio cycle the shell's own
-		 * retry is slower (5 s rejoin, 12 s IcmConnect); IcmConnect is
-		 * ignored while a join is already under way. */
-		wq_net_icm_connect();
-		if (r == WQ_OK)
+		keepwifi_hold_reconnect(0);
+		/* Kick a join: after a wake or radio cycle the shell's own retry is
+		 * slower (5 s rejoin, 12 s IcmConnect); IcmConnect is ignored while a
+		 * join is already under way. Not while the radio is off on purpose. */
+		if (can_send())
+			wq_net_icm_connect();
+		if (r == WQ_OK) {
 			g_applied_powerups = st.powerups;
-		g_retry = (r != WQ_OK && r != WQ_ERR_ARG);
+			retry_reset();
+		} else {
+			g_retry = retryable(r);
+		}
+	} else if (retryable(r)) {
+		g_retry = 1;
 	}
 	if (g_mtx >= 0) sceKernelUnlockMutex(g_mtx, 1);
 	char line[200], *p = line, *end = line + sizeof(line);
 	p = put(p, end, "mac: ");      p = put(p, end, why);
 	p = put(p, end, " ");          p = put_mac(p, end, m);
-	p = put(p, end, r == WQ_OK ? " OK" : " FAILED");
+	p = put(p, end, r == WQ_OK ? " OK" : " FAILED r=");
+	if (r != WQ_OK) { p = put(p, end, r < 0 ? "-" : ""); p = put_u(p, end, (unsigned)(r < 0 ? -r : r)); }
+	p = put(p, end, " tries ");    p = put_u(p, end, (unsigned)tries);
 	p = put(p, end, " (rc ");      p = put_hex(p, end, (unsigned)st.last_rc);
 	p = put(p, end, " chip ");     p = put_mac(p, end, st.live);
 	p = put(p, end, " ctl ");      p = put_u(p, end, st.ctl_check);
@@ -258,61 +350,147 @@ static int apply(const uint8_t *m, const char *why)
 /* Re-send the custom address after every chip power-up. The counter is a hook
  * on the driver's post-firmware init; reading it sends nothing to the chip. */
 static int factory(uint8_t *out);
+static void watch_start(void);
+
+/* Settings commands, run here rather than on the keepwifi tick that drains
+ * the mailbox: a change can take seconds (ensure_ctx, the SET retries). */
+static void run_queue(void)
+{
+	while (g_q_tail != g_q_head) {
+		char line[WQ_UI_CMD_MAX], rep[160];
+		memcpy(line, g_queue[g_q_tail % MAC_QUEUE], sizeof(line));
+		g_q_tail = g_q_tail + 1;
+		wq_dispatch_exec(line, rep, sizeof(rep));
+	}
+}
+
+/* A refused change, retried MAC_RETRIES times, further apart each time: the
+ * saved setting must not claim an address the chip is not using, but a
+ * driver that keeps refusing must not have the link dropped forever. */
+static void retry_tick(void)
+{
+	SceInt64 now = (SceInt64)sceKernelGetProcessTimeWide();
+	if (g_retry_at == 0) {
+		int s = 5 << g_retry_n;
+		g_retry_at = now + (SceInt64)(s < MAC_RETRY_MAX_S ? s : MAC_RETRY_MAX_S) * 1000000;
+		return;
+	}
+	if (now < g_retry_at || !can_send())
+		return;
+	if (g_retry_n >= MAC_RETRIES) {
+		WQ_LOGW("mac: still refused after %d retries - left until the next power-up or change",
+		        MAC_RETRIES);
+		retry_reset();
+		return;
+	}
+	g_retry_n++;
+	g_retry_at = 0;
+	uint8_t f[6];
+	int n = g_retry_n;
+	g_retry = 0;
+	if (g_mode == 1)
+		apply(g_custom, "retry");
+	else if (factory(f) == WQ_OK)
+		apply(f, "retry stock");
+	g_retry_n = g_retry ? n : 0;              /* apply cleared it on success */
+}
 
 static int watch_thread(SceSize args, void *argp)
 {
 	static const uint8_t zero[6];
 	for (int t = 0;; t++) {
 		sceKernelDelayThread(g_fast ? 200 * 1000 : 1000 * 1000);
+		g_watch_ticks++;
 		if (g_fast && t > 300)                     /* ~60 s after boot */
 			g_fast = 0;
+		run_queue();
 		WqMacStatus st;
+		memset(&st, 0, sizeof(st));
+		kmac(WQ_MAC_OP_STATUS, 0, 0, &st);    /* cheap: no hooks, no walk */
 		/* Learn the console's own address once connected, whatever the mode:
-		 * the Settings page shows it in Default and Randomize builds on it. */
+		 * the Settings page shows it in Default and Randomize builds on it.
+		 * Without the hooks (Default since boot) no address was ever set, so
+		 * SceNet's is the console's own; with them, the kernel kept it. */
 		if (!memcmp(g_saved_factory, zero, 6) && !g_job_busy && netctl_state() == 3) {
-			if (g_mtx >= 0) sceKernelLockMutex(g_mtx, 1, NULL);
-			if (ensure_ctx(&st) == WQ_OK)
-				note_factory(&st);
-			if (g_mtx >= 0) sceKernelUnlockMutex(g_mtx, 1);
+			if (!st.hooked) {
+				SceNetEtherAddr na;
+				uint8_t probe[6];
+				int why;
+				char t12[13];
+				memset(&na, 0, sizeof(na));
+				if (sceNetGetMacAddress(&na, 0) >= 0) {
+					put_mac_sep(t12, t12 + sizeof(t12), na.data, 0);
+					if (wq_mac_parse(t12, probe, &why) == 0)
+						note_factory_mac(probe);
+				}
+			} else {
+				if (g_mtx >= 0) sceKernelLockMutex(g_mtx, 1, NULL);
+				if (ensure_ctx(&st) == WQ_OK)
+					note_factory(&st);
+				if (g_mtx >= 0) sceKernelUnlockMutex(g_mtx, 1);
+			}
 		}
 		if (g_job_busy)
 			continue;
-		/* A refused SET (driver busy) is retried until the chip confirms it:
-		 * the saved setting must not claim an address the chip is not using. */
-		if (g_retry && radio_on()) {
-			static int tick;
-			if (++tick % 5 == 0) {
-				uint8_t f[6];
-				if (g_mode == 1)
-					apply(g_custom, "retry");
-				else if (factory(f) == WQ_OK)
-					apply(f, "retry stock");
-			}
+		if (g_retry) {
+			retry_tick();
 			continue;
 		}
-		if (g_mode != 1)
+		if (!st.hooked || st.powerups == g_applied_powerups || !can_send())
 			continue;
-		if (wqMacAddr(WQ_MAC_OP_STATUS, 0, 0, &st) != WQ_OK)
+		if (g_mode == 1) {
+			WQ_LOGI("mac: chip powered up (%u) - %s the custom address", (unsigned)st.powerups,
+			        g_fast ? "sending (before the first join)" : "re-sending");
+			if (apply(g_custom, "power-up") != WQ_OK)
+				g_applied_powerups = st.powerups;      /* retry_tick takes it from here */
 			continue;
-		if (st.powerups == g_applied_powerups || !radio_on())
-			continue;
-		WQ_LOGI("mac: chip powered up (%u) - %s the custom address", (unsigned)st.powerups,
-		        g_fast ? "sending (before the first join)" : "re-sending");
-		if (apply(g_custom, "power-up") != WQ_OK)
-			g_applied_powerups = st.powerups;          /* do not loop on a refusal */
+		}
+		/* Default: the chip is back on its own address, but after a custom one
+		 * the driver's copy and wlan0 still hold that until it is sent once. */
+		g_applied_powerups = st.powerups;
+		uint8_t f[6];
+		if (st.sets && factory(f) == WQ_OK && memcmp(st.drv, f, 6)) {
+			WQ_LOGI("mac: chip powered up (%u) - restoring the console's own address",
+			        (unsigned)st.powerups);
+			apply(f, "power-up stock");
+		}
 	}
 	return 0;
 }
 
+/* Settings page: run a 'mac ...' command on the watcher thread. 0, or
+ * WQ_ERR_BUSY if the queue is full (the command is dropped). */
+int wq_mac_queue(const char *line)
+{
+	watch_start();
+	unsigned h = g_q_head;
+	if (h - g_q_tail >= MAC_QUEUE) {
+		WQ_LOGW("mac: command queue full - '%s' dropped", line);
+		return WQ_ERR_BUSY;
+	}
+	int i = 0;
+	for (; line[i] && i < WQ_UI_CMD_MAX - 1; i++)
+		g_queue[h % MAC_QUEUE][i] = line[i];
+	g_queue[h % MAC_QUEUE][i] = 0;
+	g_q_head = h + 1;
+	return WQ_OK;
+}
+
+/* Called from boot, :1339 and the Settings queue: the flag is taken
+ * atomically, so only one caller creates the mutex and the thread. */
 static void watch_start(void)
 {
-	if (g_mtx < 0)
-		g_mtx = sceKernelCreateMutex("WqMacMtx", 0, 0, NULL);
-	if (g_watch_started)
+	if (g_mtx < 0) {                       /* created once, before any apply can run */
+		SceUID m = sceKernelCreateMutex("WqMacMtx", 0, 0, NULL), none = -1;
+		if (m >= 0 && !__atomic_compare_exchange_n(&g_mtx, &none, m, 0, __ATOMIC_SEQ_CST,
+		                                           __ATOMIC_SEQ_CST))
+			sceKernelDeleteMutex(m);           /* another caller won */
+	}
+	if (__atomic_exchange_n(&g_watch_started, 1, __ATOMIC_SEQ_CST))
 		return;
 	SceUID t = sceKernelCreateThread("WqMacWatch", watch_thread, 0x40, 0x2000, 0, 0, NULL);
-	if (t >= 0 && sceKernelStartThread(t, 0, NULL) >= 0)
-		g_watch_started = 1;
+	if (t < 0 || sceKernelStartThread(t, 0, NULL) < 0)
+		g_watch_started = 0;
 }
 
 static int job_thread(SceSize args, void *argp)
@@ -325,13 +503,16 @@ static int job_thread(SceSize args, void *argp)
 		WqMacStatus st;
 		int started = 0;
 		for (int i = 0; i < MAC_BOOT_WAIT_S * 5; i++) {
-			if (wqMacAddr(WQ_MAC_OP_STATUS, 0, 0, &st) == WQ_OK && st.powerups > 0) {
+			if (kmac(WQ_MAC_OP_STATUS, 0, 0, &st) == WQ_OK && st.powerups > 0) {
 				g_job_busy = 0;                  /* the watcher sends it */
 				return sceKernelExitDeleteThread(0);
 			}
-			if (netctl_state() == 3 && !g_boot_rx_cycle)
+			/* The preset's boot run cycles the radio only if it really
+			 * can (not on a fallback to stock, an unknown image, ...). */
+			int rx = g_boot_rx_cycle && rxpreset_boot_state() != 3;
+			if (netctl_state() == 3 && !rx)
 				break;                           /* joined first: drop / SET / rejoin */
-			if (!started && !g_boot_rx_cycle && radio_on()) {
+			if (!started && !rx && radio_on()) {
 				sceKernelDelayThread(1000 * 1000);
 				if (netctl_state() != 3 && rxcycle_start_ex(0, 0, NULL) == WQ_OK) {
 					started = 1;
@@ -359,9 +540,8 @@ static int job_thread(SceSize args, void *argp)
 static int start_job(const uint8_t *m, int boot)
 {
 	watch_start();
-	if (g_job_busy)
+	if (__atomic_exchange_n(&g_job_busy, 1, __ATOMIC_SEQ_CST))   /* test and set */
 		return WQ_ERR_BUSY;
-	g_job_busy = 1;
 	memcpy(g_job_mac, m, 6);
 	g_job_boot = boot;
 	SceUID t = sceKernelCreateThread("WqMacJob", job_thread, 0x40, 0x2000, 0, 0, NULL);
@@ -394,7 +574,7 @@ void wq_mac_boot(int mode, unsigned m0, unsigned m1, unsigned f0, unsigned f1, i
 	g_boot_rx_cycle = rx_cycle;
 	if (g_mode == 1) {
 		WqMacStatus st;
-		wqMacAddr(WQ_MAC_OP_STATUS, 0, 0, &st);  /* hooks in before the boot power-up */
+		kmac(WQ_MAC_OP_HOOK, 0, 0, &st);    /* hooks in before the boot power-up */
 		g_fast = 1;
 	}
 	join(g_custom, m0, m1);
@@ -449,6 +629,17 @@ static char *put_status(char *p, char *end, const WqMacStatus *s)
 	              : s->ctl_check == 3 ? "BACKPTR-MISMATCH" : "?");
 	p = put(p, end, " powerups "); p = put_u(p, end, s->powerups);
 	p = put(p, end, " sets ");     p = put_u(p, end, s->sets);
+	/* Watcher state, for soak runs. */
+	SceInt64 in = g_retry_at ? (g_retry_at - (SceInt64)sceKernelGetProcessTimeWide()) / 1000000 : 0;
+	p = put(p, end, " | watch ");  p = put_u(p, end, g_watch_ticks);
+	p = put(p, end, " job ");      p = put_u(p, end, g_job_busy);
+	p = put(p, end, " retry ");    p = put_u(p, end, g_retry);
+	p = put(p, end, "/");          p = put_u(p, end, (unsigned)g_retry_n);
+	p = put(p, end, " in ");       p = put(p, end, in < 0 ? "-" : ""); p = put_u(p, end, (unsigned)(in < 0 ? -in : in));
+	p = put(p, end, "s radio ");   p = put_u(p, end, (unsigned)radio_on());
+	p = put(p, end, " cycle ");    p = put_u(p, end, (unsigned)rxcycle_phase());
+	p = put(p, end, "/");          p = put_u(p, end, (unsigned)rxcycle_settled());
+	p = put(p, end, " sleep ");    p = put_u(p, end, (unsigned)keepwifi_power_busy());
 	if (!s->hooked)   p = put(p, end, " | NOT HOOKED");
 	if (!s->ctx_seen) p = put(p, end, " | no driver ctx yet");
 	return p;
@@ -466,13 +657,14 @@ int wq_mac_cmd(const char *a, char *out, int outcap)
 #define IS(w) (strncmp(a, w, sizeof(w) - 1) == 0 && (a[sizeof(w) - 1] == 0 || a[sizeof(w) - 1] == ' '))
 
 	if (!a[0] || IS("status")) {
-		int r = wqMacAddr(WQ_MAC_OP_STATUS, 0, 0, &st);
+		int r = kmac(WQ_MAC_OP_WALK, 0, 0, &st);   /* developer view: fresh walk */
 		put_status(p, end, &st);
 		return r;
 	}
 	if (IS("probe")) {
 		ensure_ctx(&st);
-		int r = wqMacAddr(WQ_MAC_OP_LIVE, 0, 0, &st);
+		int r = can_send() ? kmac(WQ_MAC_OP_LIVE, 0, 0, &st) : WQ_ERR_NOT_READY;
+		kmac(WQ_MAC_OP_WALK, 0, 0, &st);
 		p = put(p, end, r == WQ_OK ? "mac probe: chip says " : "mac probe: FAILED ");
 		if (r == WQ_OK) p = put_mac(p, end, st.live);
 		p = put(p, end, " | ");
@@ -497,6 +689,7 @@ int wq_mac_cmd(const char *a, char *out, int outcap)
 		}
 		g_mode = 1;
 		memcpy(g_custom, m, 6);
+		retry_reset();
 		save_state();
 		int r = start_job(m, 0);
 		if (r == WQ_ERR_BUSY) {                    /* a change is still running: */
@@ -512,8 +705,9 @@ int wq_mac_cmd(const char *a, char *out, int outcap)
 		uint8_t f[6];
 		int was = g_mode;
 		g_mode = 0;
+		retry_reset();
 		save_state();
-		wqMacAddr(WQ_MAC_OP_STATUS, 0, 0, &st);
+		kmac(WQ_MAC_OP_STATUS, 0, 0, &st);
 		if (!was && st.sets == 0) {
 			put(p, end, "mac: stock (already in use)");
 			return WQ_OK;

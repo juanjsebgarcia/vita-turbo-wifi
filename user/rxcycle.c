@@ -28,14 +28,29 @@
  * the link is back and reboots if the link then stays down RXC_GUARD_DOWN_S in
  * a row - for a firmware change that might fail some time after it loads (a
  * ring the hardware cannot index shows up as lost beacons, i.e. a disconnect).
+ *
+ * Round trip: netctl can keep reporting "connected" over a link that carries
+ * nothing (seen after a MAC address change under a live association), so
+ * "connected" alone does not prove the link is back. Before the radio goes
+ * off, the worker asks the gateway once (a TCP connect to port 53: accepted
+ * or refused, either is an answer from the other end). If it answered then,
+ * the link only counts as back once it answers again, and the watchdog keeps
+ * asking for RXC_RTT_WATCH_S more and reboots if it stays silent
+ * RXC_RTT_DOWN_S in a row (a MAC address re-send lands in that window). If
+ * it did not answer before the cycle (no link, or a network that ignores
+ * such connects), the cycle is judged as before, on netctl alone.
  */
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/net/netctl.h>   /* sceNetCtlInetGetState */
+#include <psp2/net/net.h>      /* the gateway round trip                      */
+#include <psp2/kernel/processmgr.h>   /* sceKernelGetProcessTimeWide          */
 #include <taihen.h>            /* taiGetModuleExportFunc (SceShell cold reset) */
 #include <psp2/io/fcntl.h>     /* sceIoRemove (marker)                        */
 #include <string.h>            /* memset                                      */
 
 #include "rxcycle.h"
+#include "keepalive.h"         /* wq_gateway_be                               */
+#include "keepwifi.h"          /* keepwifi_power_busy                         */
 #include "log.h"
 #include "../include/wifiturbo.h"
 #include "../include/wifiturbo_kernel_api.h"   /* wqForceReboot */
@@ -55,18 +70,70 @@ extern int sceBtSetConfiguration(int en);   /* NID 0x9B1F2964; 0 off, 1 on      
 #define RXC_FORCE_AFTER_US (30 * 1000 * 1000)  /* shell reset did not take    */
 #define RXC_GUARD_DOWN_S   60                  /* guard: down this long = reboot */
 #define RXC_PDOWN_POLLS    30                  /* wait up to 3 s for chip power-off */
+#define RXC_RTT_PORT       53                  /* gateway port asked (DNS)    */
+#define RXC_RTT_TIMEOUT_US (2 * 1000 * 1000)   /* one round trip, at most     */
+#define RXC_RTT_WATCH_S    90                  /* keep asking after the link is back */
+#define RXC_RTT_DOWN_S     45                  /* silent this long = reboot   */
 
 static volatile int g_phase;        /* rxcycle_phase()                         */
 static volatile int g_worker_done;
+static volatile unsigned g_gen;     /* bumped by every start: an older watchdog stands down */
 static volatile int g_guard_s;      /* guard time left after the link is back  */
 static volatile int g_require_link; /* 0: radio on counts as success           */
 static char         g_marker[64];   /* removed on success ("" = none)          */
 static volatile int g_last_pdown;   /* 1 if the last cycle saw the chip power off */
+static volatile unsigned g_rtt_gw;  /* gateway that answered before the cycle; 0 = none */
+
+/* 1 if `gw` answers a TCP connect within RXC_RTT_TIMEOUT_US: accepted or
+ * refused, either way a frame went out and one came back. Non-blocking, so
+ * it always returns. */
+static int gw_answers(unsigned gw)
+{
+	if (!gw)
+		return 0;
+	int fd = sceNetSocket("wqrxcrtt", SCE_NET_AF_INET, SCE_NET_SOCK_STREAM, 0);
+	if (fd < 0)
+		return 0;
+	int one = 1, ans = 0;
+	sceNetSetsockopt(fd, SCE_NET_SOL_SOCKET, SCE_NET_SO_NBIO, &one, sizeof(one));
+	SceNetSockaddrIn sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sin_family      = SCE_NET_AF_INET;
+	sa.sin_port        = sceNetHtons(RXC_RTT_PORT);
+	sa.sin_addr.s_addr = gw;
+	SceInt64 until = (SceInt64)sceKernelGetProcessTimeWide() + RXC_RTT_TIMEOUT_US;
+	for (;;) {
+		int r = sceNetConnect(fd, (SceNetSockaddr *)&sa, sizeof(sa));
+		if (r >= 0 || r == (int)SCE_NET_ERROR_EISCONN || r == (int)SCE_NET_ERROR_ECONNREFUSED) {
+			ans = 1;
+			break;
+		}
+		int err = 0;
+		unsigned len = sizeof(err);
+		if (sceNetGetsockopt(fd, SCE_NET_SOL_SOCKET, SCE_NET_SO_ERROR, &err, &len) >= 0 &&
+		    (err == SCE_NET_ECONNREFUSED || err == (int)SCE_NET_ERROR_ECONNREFUSED)) {
+			ans = 1;
+			break;
+		}
+		if ((r != (int)SCE_NET_ERROR_EINPROGRESS && r != (int)SCE_NET_ERROR_EALREADY) ||
+		    (SceInt64)sceKernelGetProcessTimeWide() >= until)
+			break;                     /* unreachable, timed out, or another error */
+		sceKernelDelayThread(100 * 1000);
+	}
+	sceNetSocketClose(fd);
+	return ans;
+}
 
 static int worker_thread(SceSize args, void *argp)
 {
 	sceKernelDelayThread(RXC_REPLY_US);
 	g_phase = 1;
+	/* Round-trip baseline (see the top of the file); only for a cycle that
+	 * needs the link back. */
+	unsigned gw = g_require_link ? wq_gateway_be() : 0;
+	g_rtt_gw = gw_answers(gw) ? gw : 0;
+	WQ_LOGI("rxcycle: gateway round trip before the cycle: %s", !gw ? "no gateway" :
+	        g_rtt_gw ? "answered - required after it" : "no answer - netctl alone decides");
 	int bt = (sceBtGetConfiguration() & 9) != 0;
 	if (bt) {
 		int rb = sceBtSetConfiguration(0);
@@ -109,15 +176,77 @@ static int link_up(void)
 	return sceNetCtlInetGetState(&state) == 0 && state == 3 && (sceWlanGetConfiguration() & 9);
 }
 
+static SceInt64 now_us(void)
+{
+	return (SceInt64)sceKernelGetProcessTimeWide();
+}
+
+/* After the link is back: keep asking the gateway that answered before the
+ * cycle. Returns 1 if it rebooted. Stands down (0) when a newer cycle starts,
+ * the Vita is going to sleep, the radio is off, or the network changed:
+ * silence is only a dead link when nothing else explains it. */
+static int rtt_watch(unsigned gen)
+{
+	unsigned gw = g_rtt_gw;
+	g_phase = 5;
+	WQ_LOGI("rxcycle: watching the gateway round trip for %d s (reboot if silent %d s)",
+	        RXC_RTT_WATCH_S, RXC_RTT_DOWN_S);
+	SceInt64 end = now_us() + (SceInt64)RXC_RTT_WATCH_S * 1000000, last_ok = now_us();
+	int fails = 0;
+	while (now_us() < end) {
+		sceKernelDelayThread(3 * 1000 * 1000);
+		if (gen != g_gen)
+			return 0;
+		const char *why = keepwifi_power_busy() ? "sleep" :
+		                  !(sceWlanGetConfiguration() & 9) ? "radio off" : NULL;
+		unsigned cur = why ? 0 : wq_gateway_be();
+		if (!why && cur && cur != gw)
+			why = "network changed";
+		if (why) {
+			WQ_LOGI("rxcycle: round-trip watch ended (%s)", why);
+			return 0;
+		}
+		if (gw_answers(gw)) {
+			if (fails)
+				WQ_LOGI("rxcycle: gateway answers again after %d s",
+				        (int)((now_us() - last_ok) / 1000000));
+			last_ok = now_us();
+			fails = 0;
+			continue;
+		}
+		/* Silent for RXC_RTT_DOWN_S, over at least 8 asks (so a clock jump
+		 * alone never counts). */
+		if (++fails == 3) {
+			int st = -1;
+			sceNetCtlInetGetState(&st);
+			WQ_LOGW("rxcycle: gateway silent (netctl state %d)", st);
+		}
+		if (fails >= 8 && now_us() - last_ok >= (SceInt64)RXC_RTT_DOWN_S * 1000000) {
+			WQ_LOGE("rxcycle: gateway silent %d s after the cycle - rebooting to stock",
+			        (int)((now_us() - last_ok) / 1000000));
+			rxcycle_reboot();
+			return 1;
+		}
+	}
+	WQ_LOGI("rxcycle: round-trip watch ended (link healthy)");
+	return 0;
+}
+
 static int watchdog_thread(SceSize args, void *argp)
 {
-	for (int s = 0; s < RXC_DEADLINE_S; s++) {
+	unsigned gen = g_gen;
+	SceInt64 deadline = now_us() + (SceInt64)RXC_DEADLINE_S * 1000000, t0 = now_us();
+	while (now_us() < deadline) {
 		sceKernelDelayThread(1000 * 1000);
 		if (!g_worker_done)
 			continue;
 		if (g_require_link ? !link_up() : !(sceWlanGetConfiguration() & 9))
 			continue;
-		WQ_LOGI("rxcycle: %s %d s after start", g_require_link ? "link back" : "radio back on", s + 1);
+		if (g_require_link && g_rtt_gw && !gw_answers(g_rtt_gw))
+			continue;                      /* "connected", but nothing comes back yet */
+		WQ_LOGI("rxcycle: %s %d s after start%s", g_require_link ? "link back" : "radio back on",
+		        (int)((now_us() - t0) / 1000000),
+		        g_require_link && g_rtt_gw ? " (gateway answers)" : "");
 		if (g_marker[0]) {
 			sceIoRemove(g_marker);
 			g_marker[0] = 0;
@@ -139,7 +268,12 @@ static int watchdog_thread(SceSize args, void *argp)
 			}
 			WQ_LOGI("rxcycle: guard ended");
 		}
-		g_phase = 0;
+		if (g_require_link && g_rtt_gw && rtt_watch(gen))
+			return sceKernelExitDeleteThread(0);
+		/* Back to idle, unless a newer cycle already took over from the watch. */
+		int ph = g_phase;
+		if (gen == g_gen)
+			__atomic_compare_exchange_n(&g_phase, &ph, 0, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 		return sceKernelExitDeleteThread(0);
 	}
 	WQ_LOGE("rxcycle: link not back after %d s (worker %s) - rebooting to stock",
@@ -187,6 +321,12 @@ int rxcycle_phase(void)
 	return g_phase;
 }
 
+int rxcycle_settled(void)
+{
+	int ph = g_phase;
+	return ph == 0 || ((ph == 2 || ph == 4 || ph == 5) && g_worker_done);
+}
+
 void rxcycle_guard_stop(void)
 {
 	g_guard_s = 0;
@@ -199,9 +339,15 @@ int rxcycle_start(int guard_min)
 
 int rxcycle_start_ex(int guard_min, int require_link, const char *marker)
 {
-	if (g_phase != 0)
+	/* Test and set: one cycle at a time. A round-trip watch (phase 5) gives
+	 * way to a new cycle: its watchdog sees g_gen move and stands down. */
+	int idle = 0, watching = 5;
+	if (!__atomic_compare_exchange_n(&g_phase, &idle, 1, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST) &&
+	    !__atomic_compare_exchange_n(&g_phase, &watching, 1, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 		return WQ_ERR_BUSY;
+	g_gen++;
 	g_worker_done = 0;
+	g_rtt_gw = 0;
 	g_require_link = require_link;
 	g_marker[0] = 0;
 	if (marker) {

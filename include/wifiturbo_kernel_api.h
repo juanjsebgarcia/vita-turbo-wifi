@@ -97,9 +97,14 @@ int wqForceReboot(void);   /* EXPERIMENTAL: syscon reset, rxcycle watchdog last 
  * follow. The chip returns to its factory address at every power-up, so the
  * caller re-sends after each one (powerups counts them). mac0 = bytes 0..3,
  * mac1 = bytes 4..5, as for wqRoamAssistArm. Always fills *out. */
-#define WQ_MAC_OP_STATUS    0   /* hooks installed on first call; read state   */
+#define WQ_MAC_OP_STATUS    0   /* read state; installs nothing, walks nothing  */
 #define WQ_MAC_OP_LIVE      1   /* ask the chip now; fills live/last_rc         */
 #define WQ_MAC_OP_SET       2   /* SET mac0/mac1 now (link should be down)      */
+#define WQ_MAC_OP_HOOK      3   /* install the hooks (if not yet), then STATUS  */
+#define WQ_MAC_OP_WALK      4   /* HOOK, plus a fresh ctx->wlan0 walk           */
+/* LIVE and SET return WQ_ERR_BUSY while the chip is off, powering up, or
+ * within WQ_MAC_SETTLE_MS of a power-up: retry later. */
+#define WQ_MAC_SETTLE_MS    500
 
 typedef struct WqMacStatus {
 	uint32_t hooked;        /* both hooks installed                            */
@@ -119,6 +124,14 @@ typedef struct WqMacStatus {
 	uint8_t  pad[2];
 } WqMacStatus;
 int wqMacAddr(int op, unsigned mac0, unsigned mac1, WqMacStatus *out);
+
+/* A small negative WQ_ERR_* returned by a kernel export reaches user code
+ * with bit 30 cleared (the syscall layer: -5 arrives as 0xBFFFFFFB). Compare
+ * kernel results with a WQ_ERR_* value only through this. */
+static inline int wq_kret(int r)
+{
+	return ((unsigned)r >> 16) == 0xBFFFu ? (int)((unsigned)r | 0x40000000u) : r;
+}
 
 /* ---- HUD renderer (read-only overlay) ----------------------------------- */
 

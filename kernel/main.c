@@ -35,6 +35,9 @@
 #include "klog.h"
 #include "rxring.h"
 #include "macaddr.h"
+
+void uibridge_init(void);   /* uibridge.c: the submit mutex */
+void uibridge_fini(void);
 #include <psp2kern/kernel/syscon.h>   /* ksceSysconSetPowerMode (wqForceReboot) */
 
 /* ---- copy-in/out helpers ------------------------------------------------ */
@@ -223,6 +226,8 @@ int module_start(SceSize argc, const void *args)
 	else
 		WQ_KLOGW("hud_init: HUD hook NOT installed (rc=%d)", rh);
 
+	macaddr_init();
+	uibridge_init();
 	WQ_KLOGI("kernel start complete");
 	return 0; /* SCE_KERNEL_START_SUCCESS */
 }
@@ -236,6 +241,7 @@ int module_stop(SceSize argc, const void *args)
 	psprofile_dtim_set(0); /* restore the stock PS_MODE_ENH builder          */
 	rxring_fini();         /* restore the stock chip image if a size was applied */
 	macaddr_fini();        /* remove the MAC address hooks if installed         */
+	uibridge_fini();
 	hud_fini();
 	wq_klog_fini();
 	return 0; /* SCE_KERNEL_STOP_SUCCESS */
