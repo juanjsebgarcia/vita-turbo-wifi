@@ -30,6 +30,7 @@
 #include "diag.h"             /* diag_sample - netctl connection state         */
 #include "advanced.h"         /* wq_adv_scan_read - roam pre-check scan        */
 #include "rxcycle.h"          /* rxcycle_phase - the radio is off on purpose   */
+#include "macaddr.h"          /* wq_mac_net_tick                               */
 #include "log.h"
 #include "../include/wifiturbo.h"
 #include "../include/wifiturbo_kernel_api.h"  /* wqRoamAssist*          */
@@ -605,6 +606,7 @@ static int net_thread(SceSize args, void *argp)
 		}
 		smart_roam();         /* independent of keepwifi: roam on weak signal   */
 		wq_settings_pump();   /* drain the Settings mailbox + publish state     */
+		wq_mac_net_tick();    /* Default: learn the console's own address       */
 		g_net_beat++;
 		sceKernelDelayThread(1000 * 1000);
 	}
@@ -656,8 +658,9 @@ int keepwifi_start(void)
 	if (g_thid >= 0)
 		return WQ_OK;
 	g_run = 1;
+	/* The power thread only takes power events and logs: 8 KB. */
 	g_thid = sceKernelCreateThread("WqKeepWifi", keepwifi_thread,
-	                               0x40, 0x4000, 0, 0, NULL);
+	                               0x40, 0x2000, 0, 0, NULL);
 	g_net_thid = sceKernelCreateThread("WqKeepWifiNet", net_thread,
 	                                   0x40, 0x4000, 0, 0, NULL);
 	if (g_thid < 0 || g_net_thid < 0) {

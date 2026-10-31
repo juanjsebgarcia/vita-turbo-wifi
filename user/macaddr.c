@@ -13,8 +13,10 @@
  * a power-up after a custom address leaves the driver's copies on the custom
  * one, so the watcher sends the console's own address once then.
  *
- * A console that stays on Default never loads the kernel hooks: its own
- * address is read from SceNet. Nothing is sent while the radio is off or
+ * A console that stays on Default never loads the kernel hooks and runs no
+ * watcher thread: its own address is read from SceNet by the keepwifi
+ * network thread (wq_mac_net_tick). The watcher starts with Custom at boot,
+ * or with the first change. Nothing is sent while the radio is off or
  * power-cycling, or the Vita is going to sleep; a refused change is retried
  * a few times, further apart each time, then left until the next power-up.
  *
@@ -395,6 +397,34 @@ static void retry_tick(void)
 	g_retry_n = g_retry ? n : 0;              /* apply cleared it on success */
 }
 
+/* Without the hooks no address was ever set this boot, so SceNet's is the
+ * console's own. */
+static void factory_from_scenet(void)
+{
+	SceNetEtherAddr na;
+	uint8_t probe[6];
+	int why;
+	char t12[13];
+	memset(&na, 0, sizeof(na));
+	if (sceNetGetMacAddress(&na, 0) >= 0) {
+		put_mac_sep(t12, t12 + sizeof(t12), na.data, 0);
+		if (wq_mac_parse(t12, probe, &why) == 0)
+			note_factory_mac(probe);
+	}
+}
+
+void wq_mac_net_tick(void)
+{
+	static const uint8_t zero[6];
+	if (g_watch_started || memcmp(g_saved_factory, zero, 6) || netctl_state() != 3)
+		return;
+	WqMacStatus st;
+	memset(&st, 0, sizeof(st));
+	kmac(WQ_MAC_OP_STATUS, 0, 0, &st);
+	if (!st.hooked)
+		factory_from_scenet();
+}
+
 static int watch_thread(SceSize args, void *argp)
 {
 	static const uint8_t zero[6];
@@ -413,16 +443,7 @@ static int watch_thread(SceSize args, void *argp)
 		 * SceNet's is the console's own; with them, the kernel kept it. */
 		if (!memcmp(g_saved_factory, zero, 6) && !g_job_busy && netctl_state() == 3) {
 			if (!st.hooked) {
-				SceNetEtherAddr na;
-				uint8_t probe[6];
-				int why;
-				char t12[13];
-				memset(&na, 0, sizeof(na));
-				if (sceNetGetMacAddress(&na, 0) >= 0) {
-					put_mac_sep(t12, t12 + sizeof(t12), na.data, 0);
-					if (wq_mac_parse(t12, probe, &why) == 0)
-						note_factory_mac(probe);
-				}
+				factory_from_scenet();
 			} else {
 				if (g_mtx >= 0) sceKernelLockMutex(g_mtx, 1, NULL);
 				if (ensure_ctx(&st) == WQ_OK)
@@ -579,7 +600,8 @@ void wq_mac_boot(int mode, unsigned m0, unsigned m1, unsigned f0, unsigned f1, i
 	}
 	join(g_custom, m0, m1);
 	join(g_saved_factory, f0, f1);
-	watch_start();
+	if (g_mode == 1)
+		watch_start();                   /* Default: none until the first change */
 	uint8_t probe[6];
 	int why;
 	if (g_mode != 1)
