@@ -232,10 +232,17 @@ static int hook_join(void *ctx, uint8_t *req, int len)
 	roamassist_join_cb cb = g_join_cb;
 	__atomic_add_fetch(&g_join_depth, 1, __ATOMIC_SEQ_CST);
 	int r = 0;
-	if (cb && !g_in_join && req && len >= REQ_MIN_LEN) {
-		uint32_t n = *(const uint32_t *)(req + REQ_OFF_SSIDLEN);
-		if (n <= 32)
-			r = cb(ctx, req + REQ_OFF_SSID, n);
+	if (cb && !g_in_join) {
+		/* A request it cannot read still goes to the callback (ssid NULL),
+		 * which decides whether it may go ahead. */
+		const uint8_t *ssid = NULL;
+		uint32_t n = 0;
+		if (req && len >= REQ_MIN_LEN) {
+			n = *(const uint32_t *)(req + REQ_OFF_SSIDLEN);
+			if (n <= 32)
+				ssid = req + REQ_OFF_SSID;
+		}
+		r = cb(ctx, ssid, ssid ? n : 0);
 	}
 	if (r >= 0)
 		r = hook_join_inner(ctx, req, len);

@@ -599,7 +599,12 @@ static int pernet_scan(void *sctx)
 	if (roamassist_join_in_flight())
 		return 0;
 	uintptr_t ctx = pernet_ctx(sctx);
-	if (!ctx || linked(ctx))
+	if (!ctx) {                                   /* cannot tell or set: fail closed */
+		g_pn.scans_skipped++;
+		g_pn.last_rc = WQ_ERR_NOT_READY;
+		return PN_REFUSE;
+	}
+	if (linked(ctx))
 		return 0;
 	if (!g_scan_mac_ok) {
 		uint8_t rnd[8] = { 0 };
@@ -624,7 +629,7 @@ static int pernet_join(void *jctx, const uint8_t *ssid, uint32_t n)
 		return g_pn_hold ? pernet_held(0) : 0;
 	uintptr_t ctx = pernet_ctx(jctx);
 	g_pn.joins++;
-	if (!ctx) {
+	if (!ctx || !ssid) {                          /* cannot set it: fail closed */
 		g_pn.refused++;
 		return PN_REFUSE;
 	}

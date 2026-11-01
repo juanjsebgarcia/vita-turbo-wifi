@@ -16,7 +16,8 @@ void roamassist_fini(void);
 
 /* Called at the start of every kernel join, in the joining thread, before the
  * join handler runs (no driver lock held), with the join handler's own context
- * argument (the driver ctx + 0x580) and the network name. A negative return
+ * argument (the driver ctx + 0x580) and the network name (NULL if the request
+ * could not be read). A negative return
  * refuses the join with that code (the handler is not called). NULL to clear.
  * Installs the hooks if needed. WQ_OK / WQ_ERR_*. */
 typedef int (*roamassist_join_cb)(void *jctx, const uint8_t *ssid, uint32_t len);

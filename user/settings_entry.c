@@ -158,7 +158,9 @@ static void note(const char *line, int mac_ok)
 	if (settings_track(line, mac_ok)) {
 		wq_persist_save(&g_settings);
 		wqUiPublish(&g_settings);
-		WQ_LOGI("settings: state updated+saved via '%s'", line);
+		/* The per-network secret never goes into the log. */
+		WQ_LOGI("settings: state updated+saved via '%s'",
+		        str_pre(line, "mac key ") ? "mac key (secret, not logged)" : line);
 	}
 	set_unlock();
 }
