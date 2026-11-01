@@ -172,7 +172,7 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 | **HUD position** | Which corner of the screen the HUD sits in. | Top left |
 | **In-game HUD** | Also shows the HUD over games and apps. When off, it shows only on the Home screen, in Settings and in the quick menu (press the PS button). | Off |
 | **HUD data rate** | Adds a line to the HUD, in both *Compact* and *Extended*, with the current download and upload speed: `DOWN 12.3 Mb/s UP 0.4 Mb/s`. | Off |
-| **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up. (After waking from sleep, Wi-Fi Turbo asks the Vita to connect straight away, with this on or off.) | On |
+| **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up, and straight after waking from sleep (it asks the Vita to connect at once instead of waiting for its own retry). | On |
 | **Smart Mesh Roaming** | On sustained weak signal, rescans and joins the strongest AP of the same network. | Off |
 | **Roaming signal level** | How weak the signal must stay before *Smart Mesh Roaming* looks for a stronger access point: *-65*, *-70*, *-75* or *-80 dBm*. Higher roams sooner. Greyed out while roaming is off. | -75 dBm |
 | **40 MHz** | Lets the Vita negotiate 40 MHz channels. Needs an access point with 2.4 GHz set to 40 MHz. | Off |
