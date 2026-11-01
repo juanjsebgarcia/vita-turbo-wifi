@@ -140,6 +140,10 @@ enum wq_i18n_id {
 	WT_I18N_ROW_HUDRATE,        /* "HUD data rate"            */
 	WT_I18N_HINT_HUDRATE,
 
+	/* "HUD only on problems" toggle */
+	WT_I18N_ROW_HUDAUTO,        /* "HUD only on problems"     */
+	WT_I18N_HINT_HUDAUTO,
+
 	WT_I18N_COUNT
 };
 

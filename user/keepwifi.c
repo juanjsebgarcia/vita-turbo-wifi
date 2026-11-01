@@ -202,6 +202,8 @@ void keepwifi_set_roam(int on)  { g_roam_on = on ? 1 : 0; g_roam_weak = 0;
                                   WQ_LOGI("roam: Smart Mesh Roaming %s", on ? "ON" : "off"); }
 int  keepwifi_roam_enabled(void) { return g_roam_on; }
 
+int keepwifi_wifi_wanted(void) { return user_wants_wifi(); }
+
 int keepwifi_set_roam_level(int dbm)
 {
 	if (dbm != 65 && dbm != 70 && dbm != 75 && dbm != 80)
@@ -670,6 +672,9 @@ static int net_thread(SceSize args, void *argp)
 				keepalive_tick();    /* heartbeat: stop the AP ageing an idle Vita  */
 			if (g_autorecon)
 				reconnect_watch();   /* auto-reconnect on => reconnect if dropped   */
+			else
+				g_wake_nudge = 0;    /* off: no wake nudge left to fire when it is
+				                      * turned on later                            */
 		}
 		smart_roam();         /* independent of keepwifi: roam on weak signal   */
 		wq_settings_pump();   /* drain the Settings mailbox + publish state     */

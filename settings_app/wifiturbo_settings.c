@@ -64,6 +64,7 @@ static const char WT_ROWS[] =
  "</list>"
  "<toggle_switch id=\"wt_hudgame\" title=\"wt_t_hudgame\" icon=\"tex_spanner\" hint=\"wt_h_hudgame\" key=\"/CONFIG/WIFITURBO/hudgame\"/>"
  "<toggle_switch id=\"wt_hudrate\" title=\"wt_t_hudrate\" icon=\"tex_spanner\" hint=\"wt_h_hudrate\" key=\"/CONFIG/WIFITURBO/hudrate\"/>"
+ "<toggle_switch id=\"wt_hudauto\" title=\"wt_t_hudauto\" icon=\"tex_spanner\" hint=\"wt_h_hudauto\" key=\"/CONFIG/WIFITURBO/hudauto\"/>"
  "<toggle_switch id=\"wt_autorecon\" title=\"wt_t_autorecon\" icon=\"tex_spanner\" hint=\"wt_h_autorecon\" key=\"/CONFIG/WIFITURBO/autoreconnect\"/>"
  "<toggle_switch id=\"wt_roam\" title=\"wt_t_roam\" icon=\"tex_spanner\" hint=\"wt_h_roam\" key=\"/CONFIG/WIFITURBO/roam\"/>"
  "<list id=\"wt_roamlvl\" title=\"wt_t_roamlvl\" icon=\"tex_spanner\" hint=\"wt_h_roamlvl\" key=\"/CONFIG/WIFITURBO/roamlvl\">"
@@ -165,6 +166,8 @@ static const wt_u16 *WT_TEXT(const char *id)
 	M("wt_h_roamlvl",   WT_I18N_HINT_ROAMLVL)
 	M("wt_t_hudrate",   WT_I18N_ROW_HUDRATE)
 	M("wt_h_hudrate",   WT_I18N_HINT_HUDRATE)
+	M("wt_t_hudauto",   WT_I18N_ROW_HUDAUTO)
+	M("wt_h_hudauto",   WT_I18N_HINT_HUDAUTO)
 	#undef M
 	/* Roaming signal level items: "-65 dBm" .. "-80 dBm", the same in every
 	 * language. */
@@ -285,6 +288,7 @@ static int *wt_field(const char *name)
 	if (s_eqn(name,"hudpos",7))         return &g_ui.hudpos;
 	if (s_eqn(name,"hudgame",8))        return &g_ui.hudgame;
 	if (s_eqn(name,"hudrate",8))        return &g_ui.hudrate;
+	if (s_eqn(name,"hudauto",8))        return &g_ui.hudauto;
 	if (s_eqn(name,"roamlvl",8))        return &g_ui.roamlvl;
 	if (s_eqn(name,"hud",4))            return &g_ui.hud;
 	if (s_eqn(name,"autoreconnect",14)) return &g_ui.autoreconnect;

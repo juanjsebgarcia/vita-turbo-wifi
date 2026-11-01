@@ -158,7 +158,7 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 {
 	int idx = g_front;
 	const WqHudState *s = &g_state[idx];
-	if (!s->valid)
+	if (!s->valid || s->hide)
 		return;
 
 	/* Build every visible line first, so the whole block can be anchored to the
@@ -441,7 +441,6 @@ int hud_set_ingame(int on)
 	return WQ_OK;
 }
 
-/* Copy the state in from user memory into the back buffer, then flip. */
 /* "HUD data rate": the driver's own byte counters (ctx+0x6c0 received,
  * ctx+0x6a0 sent; the same struct on both builds), read once per state update
  * (once a second), as kbit/s since the last read. No hooks, nothing per packet.
@@ -481,6 +480,7 @@ static int hud_rate(uint32_t *down, uint32_t *up)
 	return ok;
 }
 
+/* Copy the state in from user memory into the back buffer, then flip. */
 int hud_set_state(const WqHudState *state)
 {
 	if (!state)

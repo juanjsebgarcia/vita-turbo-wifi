@@ -172,6 +172,7 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 | **HUD position** | Which corner of the screen the HUD sits in. | Top left |
 | **In-game HUD** | Also shows the HUD over games and apps. When off, it shows only on the Home screen, in Settings and in the quick menu (press the PS button). | Off |
 | **HUD data rate** | Adds a line to the HUD, in both *Compact* and *Extended*, with the current download and upload speed: `DOWN 12.3 Mb/s UP 0.4 Mb/s`. | Off |
+| **HUD only on problems** | Hides the HUD while Wi-Fi is working well. It appears while Wi-Fi is disconnected, connecting or getting an address (DHCP), or when the signal stays at or below the *Roaming signal level*, and hides 5 s after it recovers. Turning Wi-Fi off yourself doesn't count as a problem. | Off |
 | **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up, and straight after waking from sleep (it asks the Vita to connect at once instead of waiting for its own retry). | On |
 | **Smart Mesh Roaming** | On sustained weak signal, rescans and joins the strongest AP of the same network. | Off |
 | **Roaming signal level** | How weak the signal must stay before *Smart Mesh Roaming* looks for a stronger access point: *-65*, *-70*, *-75* or *-80 dBm*. Higher roams sooner. Greyed out while roaming is off. | -75 dBm |
@@ -295,6 +296,7 @@ which uses ports 1337 and 1338. Send one command per connection, for example
 | `keepwifi on \| off`, `autoreconnect on \| off` | The Settings toggles |
 | `hud off \| compact \| extended` | The HUD (`on` is *extended*) |
 | `hudrate on \| off` | The HUD data rate line |
+| `hudauto on \| off` | Show the HUD only on problems |
 | `mac status`, `mac stock \| custom \| random`, `mac set <addr>`, `mac pernet on` | MAC address: show all copies, or change it |
 | `devmode off` | Close the remote-control port (turn it back on in Settings) |
 | `roam on \| off`, `roam level 65 \| 70 \| 75 \| 80`, `roam now`, `roam status` | Smart Mesh Roaming, and its signal level (-N dBm) |

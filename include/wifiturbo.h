@@ -22,7 +22,7 @@
 
 /* Release version. The .yml module versions carry major.minor (0.1); bump all
  * three together. Logged in both modules' init banner so a log pins the build. */
-#define WQ_VERSION_STR    "0.6.0"
+#define WQ_VERSION_STR    "0.6.1"
 
 /* Saved settings (user/persist.c writes them; the kernel reads the MAC mode and
  * the per-network secret at start, kernel/macaddr.c): a magic word, then a
@@ -93,6 +93,7 @@ typedef struct WqHudState {
 	uint8_t  rate_valid;       /* kernel: the two below are a real reading     */
 	uint32_t down_kbps;        /* kernel fills these from the driver's byte    */
 	uint32_t up_kbps;          /* counters when rate_on (kbit/s)               */
+	uint8_t  hide;             /* "HUD only on problems": nothing to show now  */
 } WqHudState;
 
 /* HUD overlay screen corner. Config (not per-sample telemetry): set with

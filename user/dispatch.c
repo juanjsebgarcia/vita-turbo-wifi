@@ -193,13 +193,14 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 
 	if (!line || !line[0] || str_eq(line, "help")) {
 		put(p, end,
-		    "cmds: status|hud off/compact/extended|hud pos tl/tr/bl/br|hudgame on/off|profile maxperf/balanced/maxbatt|"
+		    "cmds: status|hud off/compact/extended|hud pos tl/tr/bl/br|hudgame on/off|hudrate on/off|"
+		    "hudauto on/off|profile maxperf/balanced/maxbatt|"
 		    "ht40 on/off|confirm|revert|autoreconnect on/off|keepwifi on/off|"
-		    "roam on/off|roam now|roam precheck on/off|roam status|"
+		    "roam on/off|roam level 65/70/75/80|roam now|roam precheck on/off|roam status|"
 		    "rejoin|icm|icmtest|netdown|"
 		    "selftest|speedtest <ip> <port> [secs] [rcvbuf_kb]|udpsink <port> [secs]|"
 		    "log [dump]|log level <err|warn|info|debug|trace>|log clear|adv scan|"
-		    "mac status|stock|custom|random|set <addr>");
+		    "mac status|stock|custom|random|set <addr>|pernet on");
 		return WQ_OK;
 	}
 
@@ -273,7 +274,17 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 
 	/* 'hudrate on|off' - the "HUD data rate" row: a DOWN/UP line in both HUD
 	 * modes (the kernel reads the driver's byte counters). */
+	/* 'hudauto on|off' - the "HUD only on problems" row. */
+	if ((a = tok_after(line, "hudauto"))) {
+		if (!str_eq(a, "on") && !str_eq(a, "off")) { put(p, end, "err: hudauto on|off"); return WQ_ERR_ARG; }
+		int on = str_eq(a, "on");
+		wq_hud_set_auto(on);
+		put(p, end, on ? "hudauto on" : "hudauto off");
+		return WQ_OK;
+	}
+
 	if ((a = tok_after(line, "hudrate"))) {
+		if (!str_eq(a, "on") && !str_eq(a, "off")) { put(p, end, "err: hudrate on|off"); return WQ_ERR_ARG; }
 		int on = str_eq(a, "on");
 		wq_hud_set_rate(on);
 		put(p, end, on ? "hudrate on" : "hudrate off");

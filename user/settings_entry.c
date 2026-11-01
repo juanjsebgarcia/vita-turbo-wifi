@@ -103,12 +103,19 @@ static int settings_track(const char *line, int mac_ok)
 	else if (str_pre(line, "ht40 "))          g_settings.ht40          = str_pre(line, "ht40 on");
 	/* only 'roam on|off' - 'roam now/status/precheck' must not clear it */
 	else if (str_pre(line, "devmode "))       g_settings.devmode       = str_pre(line, "devmode on");
-	else if (str_pre(line, "roam level ") && line[11] && !line[13] &&
-	         (str_pre(line + 11, "65") || str_pre(line + 11, "70") ||
-	          str_pre(line + 11, "75") || str_pre(line + 11, "80")))
-	                                          g_settings.roamlvl       =
-	             (line[11] - '0') * 10 + (line[12] - '0');
-	else if (str_pre(line, "hudrate "))       g_settings.hudrate       = str_pre(line, "hudrate on");
+	else if (str_pre(line, "roam level ")) {   /* read the way the command reads it */
+		const char *d = line + 11;
+		int v = 0;
+		while (*d == ' ') d++;
+		while (*d >= '0' && *d <= '9' && v < 1000) v = v * 10 + (*d++ - '0');
+		if (v != 65 && v != 70 && v != 75 && v != 80)
+			return 0;
+		g_settings.roamlvl = v;
+	}
+	else if (str_pre(line, "hudrate on") || str_pre(line, "hudrate off"))
+	                                          g_settings.hudrate       = str_pre(line, "hudrate on");
+	else if (str_pre(line, "hudauto on") || str_pre(line, "hudauto off"))
+	                                          g_settings.hudauto       = str_pre(line, "hudauto on");
 	else if (str_pre(line, "roam on") || str_pre(line, "roam off"))
 	                                          g_settings.roam          = str_pre(line, "roam on");
 	else if (str_pre(line, "profile "))       g_settings.profile       =
@@ -147,6 +154,16 @@ static int settings_track(const char *line, int mac_ok)
 	return memcmp(&b, &g_settings, sizeof(b)) != 0;
 }
 
+/* The published copy (read by the Settings app and the quick menu, and
+ * readable by any process) never carries the per-network secret: nothing
+ * reads it from there (the kernel reads settings.bin itself). */
+static void ui_publish(void)
+{
+	WqUiState pub = g_settings;
+	memset(pub.pnkey, 0, sizeof(pub.pnkey));
+	wqUiPublish(&pub);
+}
+
 /* The ONE place any command path folds a setting change into the persisted
  * state. Called from wq_dispatch_exec, so the Settings UI, the :1339 surface and
  * any internal caller all update + persist + publish identically - single source
@@ -157,7 +174,7 @@ static void note(const char *line, int mac_ok)
 	if (!g_settings_ready) { wq_persist_load(&g_settings); g_settings_ready = 1; }
 	if (settings_track(line, mac_ok)) {
 		wq_persist_save(&g_settings);
-		wqUiPublish(&g_settings);
+		ui_publish();
 		/* The per-network secret never goes into the log. */
 		WQ_LOGI("settings: state updated+saved via '%s'",
 		        str_pre(line, "mac key ") ? "mac key (secret, not logged)" : line);
@@ -201,6 +218,7 @@ void wq_settings_boot(void)
 		wq_dispatch_exec(lvl, rep, sizeof(rep));
 	}
 	wq_dispatch_exec(g_settings.hudrate ? "hudrate on" : "hudrate off", rep, sizeof(rep));
+	wq_dispatch_exec(g_settings.hudauto ? "hudauto on" : "hudauto off", rep, sizeof(rep));
 	wq_dispatch_exec(g_settings.devmode ? "devmode on" : "devmode off", rep, sizeof(rep));
 	/* Profile + 40 MHz: driver patches and the PS flag, applied before the
 	 * first join (or with one reassociation if already connected). */
@@ -214,7 +232,7 @@ void wq_settings_boot(void)
 	wq_mac_boot(g_settings.macmode, (unsigned)g_settings.mac0, (unsigned)g_settings.mac1,
 	            (unsigned)g_settings.fmac0, (unsigned)g_settings.fmac1, g_settings.rxring != 0);
 	set_lock();
-	wqUiPublish(&g_settings);
+	ui_publish();
 	set_unlock();
 	WQ_LOGI("persist: applied saved settings at boot");
 }
@@ -258,6 +276,6 @@ void wq_settings_pump(void)
 	}
 	set_lock();
 	wq_mac_publish(&g_settings.macuse0, &g_settings.macuse1, &g_settings.macbusy);
-	wqUiPublish(&g_settings);                      /* periodic reflect           */
+	ui_publish();                      /* periodic reflect           */
 	set_unlock();
 }

@@ -29,6 +29,8 @@ void keepwifi_set_roam(int on);
 /* "Roaming signal level": 65, 70, 75 (default) or 80, meaning -N dBm. */
 int  keepwifi_set_roam_level(int dbm);
 int  keepwifi_roam_level(void);
+/* 1 unless the user has turned Wi-Fi off (System > Network > Wi-Fi). */
+int  keepwifi_wifi_wanted(void);
 int  keepwifi_roam_enabled(void);
 void keepwifi_roam_now(void);            /* one forced roam on the worker      */
 void keepwifi_set_roam_precheck(int on); /* libnetctl scan veto/target (def 1) */

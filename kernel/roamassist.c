@@ -307,21 +307,20 @@ static int install_hooks(void)
 
 static int install_hooks_once(void)
 {
-	if (g_join_hook >= 0 && g_scan_hook >= 0 && g_bgscan_hook >= 0)
+	if (g_join_hook >= 0 && g_scan_hook >= 0)
 		return WQ_OK;
 	const WlanbtLayout *l = wlanbt_layout();
 	SceUID modid;
 	uintptr_t text;
-	if (!l || wlanbt_text(l->bgscan + 8, &modid, &text) != WQ_OK)
+	if (!l || wlanbt_text(l->scan + 8, &modid, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
-	const uint32_t off_join = l->join, off_scan = l->scan, off_bg = l->bgscan;
+	const uint32_t off_join = l->join, off_scan = l->scan;
 	const volatile uint8_t *t = (const volatile uint8_t *)text;
 	static const uint8_t join0[4] = { 0x2D, 0xE9, 0xF0, 0x4F };
 	static const uint8_t scan0[8] = { 0xF8, 0xB5, 0x00, 0xF1, 0x08, 0x04, 0x05, 0x46 };
-	static const uint8_t bg0[8]   = { 0x2D, 0xE9, 0xF0, 0x4F, 0x00, 0xF1, 0x08, 0x07 };
 	for (int i = 0; i < 8; i++) {
 		if ((i < 4 && t[off_join + i] != join0[i]) ||
-		    t[off_scan + i] != scan0[i] || t[off_bg + i] != bg0[i]) {
+		    t[off_scan + i] != scan0[i]) {
 			WQ_KLOGW("roamassist: original bytes mismatch (join %02x%02x%02x%02x "
 			         "scan %02x%02x%02x%02x) - unexpected SceWlanBt, refusing",
 			         t[off_join], t[off_join + 1],
@@ -341,16 +340,6 @@ static int install_hooks_once(void)
 			return WQ_ERR_RESOLVE;
 		}
 	}
-	if (g_bgscan_hook < 0) {
-		g_bgscan_hook = taiHookFunctionOffsetForKernel(KERNEL_PID, &g_bgscan_ref, modid, 0,
-		                                               off_bg, 1, hook_bgscan);
-		if (g_bgscan_hook < 0) {
-			WQ_KLOGW("roamassist: background-scan hook failed (0x%08x)",
-			         (unsigned)g_bgscan_hook);
-			g_bgscan_hook = -1;
-			return WQ_ERR_RESOLVE;
-		}
-	}
 	if (g_join_hook < 0) {
 		g_join_hook = taiHookFunctionOffsetForKernel(KERNEL_PID, &g_join_ref, modid, 0,
 		                                             off_join, 1, hook_join);
@@ -361,9 +350,52 @@ static int install_hooks_once(void)
 		}
 	}
 	g_st.hooked = 1;
-	WQ_KLOGI("roamassist: hooked join +0x%x + scan +0x%x + background scan +0x%x",
-	         (unsigned)off_join, (unsigned)off_scan, (unsigned)off_bg);
+	WQ_KLOGI("roamassist: hooked join +0x%x + scan +0x%x", (unsigned)off_join,
+	         (unsigned)off_scan);
 	return WQ_OK;
+}
+
+/* The background-scan start, for the per-network scan callback only: Smart
+ * Mesh Roaming never needs it, so it is not part of install_hooks_once and its
+ * failure never costs roaming its hooks. */
+static int install_bgscan_once(void)
+{
+	if (g_bgscan_hook >= 0)
+		return WQ_OK;
+	const WlanbtLayout *l = wlanbt_layout();
+	SceUID modid;
+	uintptr_t text;
+	if (!l || wlanbt_text(l->bgscan + 8, &modid, &text) != WQ_OK)
+		return WQ_ERR_RESOLVE;
+	const volatile uint8_t *t = (const volatile uint8_t *)text;
+	static const uint8_t bg0[8] = { 0x2D, 0xE9, 0xF0, 0x4F, 0x00, 0xF1, 0x08, 0x07 };
+	for (int i = 0; i < 8; i++) {
+		if (t[l->bgscan + i] != bg0[i]) {
+			WQ_KLOGW("roamassist: original bytes mismatch (background scan "
+			         "%02x%02x%02x%02x%02x%02x%02x%02x) - not hooked",
+			         t[l->bgscan], t[l->bgscan + 1], t[l->bgscan + 2], t[l->bgscan + 3],
+			         t[l->bgscan + 4], t[l->bgscan + 5], t[l->bgscan + 6], t[l->bgscan + 7]);
+			return WQ_ERR_RESOLVE;
+		}
+	}
+	g_bgscan_hook = taiHookFunctionOffsetForKernel(KERNEL_PID, &g_bgscan_ref, modid, 0,
+	                                               l->bgscan, 1, hook_bgscan);
+	if (g_bgscan_hook < 0) {
+		WQ_KLOGW("roamassist: background-scan hook failed (0x%08x)", (unsigned)g_bgscan_hook);
+		g_bgscan_hook = -1;
+		return WQ_ERR_RESOLVE;
+	}
+	WQ_KLOGI("roamassist: hooked background scan +0x%x", (unsigned)l->bgscan);
+	return WQ_OK;
+}
+
+static int install_bgscan(void)
+{
+	while (__atomic_exchange_n(&g_installing, 1, __ATOMIC_SEQ_CST))
+		ksceKernelDelayThread(1000);
+	int r = install_bgscan_once();
+	__atomic_store_n(&g_installing, 0, __ATOMIC_SEQ_CST);
+	return r;
 }
 
 int roamassist_arm(unsigned flags, const uint8_t bssid[6])
@@ -406,6 +438,8 @@ int roamassist_set_scan_cb(roamassist_scan_cb cb)
 {
 	if (cb) {
 		int r = install_hooks();
+		if (r == WQ_OK)
+			r = install_bgscan();                 /* the callback covers both scans */
 		if (r != WQ_OK)
 			return r;
 	}

@@ -350,10 +350,10 @@ static int op_set(uintptr_t ctx, const uint8_t *mac)
 	uint32_t pu = g_powerups;
 	int r = ctl_get_mac(ctx, mac);
 	if (!g_quiet)
-	WQ_KLOGI("macaddr: SET %02x:%02x:%02x:%02x:%02x:%02x rc=0x%08x used=%d chip "
-	         "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4],
-	         mac[5], (unsigned)g_last_rc, g_oneshot_used, g_live[0], g_live[1],
-	         g_live[2], g_live[3], g_live[4], g_live[5]);
+		WQ_KLOGI("macaddr: SET %02x:%02x:%02x:%02x:%02x:%02x rc=0x%08x used=%d chip "
+		         "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4],
+		         mac[5], (unsigned)g_last_rc, g_oneshot_used, g_live[0], g_live[1],
+		         g_live[2], g_live[3], g_live[4], g_live[5]);
 	if (r != WQ_OK)
 		return r;
 	if (g_powerups != pu || g_in_init)
@@ -781,6 +781,11 @@ static int pernet_boot_thread(SceSize args, void *argp)
 	}
 	g_pn_hold = 0;
 	WQ_KLOGI("macaddr: boot - per-network %s (rc=%d)", g_pernet ? "ON" : "not on yet", r);
+	if (r == WQ_OK && g_pn_boot_run) {
+		guard_put('0');                           /* the risky step (hooks) is done */
+		memset(g_boot_key, 0, sizeof(g_boot_key));
+		return ksceKernelExitDeleteThread(0);
+	}
 	memset(g_boot_key, 0, sizeof(g_boot_key));
 	for (int t = 0; g_pn_boot_run && !g_pn.sets && t < PN_GUARD_S * 10; t++)
 		ksceKernelDelayThread(100 * 1000);

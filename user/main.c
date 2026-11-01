@@ -23,12 +23,58 @@
 #include "macaddr.h"        /* wq_mac_hud - HUD MAC line                       */
 #include "../settings_app/wifiturbo_i18n.h"   /* wq_i18n_lang - HUD language   */
 #include "advanced.h"
+#include "keepwifi.h"          /* hud_problem: Wi-Fi wanted, roaming level */
 #include "../settings_app/settings_ui.h"
 
 static int    g_sampler_run = 0;
 static SceUID g_sampler = -1;
 static volatile int g_hud_compact;   /* HUD mode: 1 = Compact, 0 = Extended */
 static volatile int g_hud_rate;      /* "HUD data rate" (the kernel reads it) */
+static volatile int g_hud_auto;      /* "HUD only on problems"                */
+
+/* "HUD only on problems": 1 while there is something to show - Wi-Fi
+ * disconnected, connecting or getting an address (when it is meant to be on),
+ * or the signal at or below the Roaming signal level for 3 s (it clears 3 dB
+ * above it) - and for 5 s after, so the recovery shows before it hides. */
+#define HUD_AUTO_WEAK_S  3
+#define HUD_AUTO_CLEAR_DB 3
+#define HUD_AUTO_HOLD_S  5
+static int hud_problem(const WqHudState *s)
+{
+	static int weak_n, weak, hold;
+	int bad = 0;
+	if (keepwifi_wifi_wanted()) {
+		int st = s->netctl_state;
+		if (st >= WQ_NETCTL_DISCONNECTED && st < WQ_NETCTL_CONNECTED)
+			bad = 1;
+		int lvl = -keepwifi_roam_level();
+		if (st == WQ_NETCTL_CONNECTED && s->rssi_dbm < 0) {
+			if (s->rssi_dbm <= lvl) {
+				if (++weak_n >= HUD_AUTO_WEAK_S)
+					weak = 1;
+			} else {
+				weak_n = 0;
+				if (s->rssi_dbm > lvl + HUD_AUTO_CLEAR_DB)
+					weak = 0;
+			}
+		} else {
+			weak_n = 0;
+			weak = 0;
+		}
+	} else {
+		weak_n = 0;
+		weak = 0;
+	}
+	if (bad || weak) {
+		hold = HUD_AUTO_HOLD_S;
+		return 1;
+	}
+	if (hold > 0) {
+		hold--;
+		return 1;
+	}
+	return 0;
+}
 
 /* Sample diagnostics once a second and push to the kernel HUD renderer, with
  * the safety harness's one-line status as the HUD notice. */
@@ -45,6 +91,7 @@ static int sampler_thread(SceSize args, void *argp)
 			wq_safety_status(s.notice, sizeof(s.notice));
 			s.compact = (uint8_t)g_hud_compact;
 			s.rate_on = (uint8_t)g_hud_rate;
+			s.hide = (uint8_t)(g_hud_auto && !hud_problem(&s));
 			s.mac_custom = (uint8_t)wq_mac_hud(s.mac);   /* Custom only: 1 in use, 2 pending, 3 not applied */
 			wqHudSetState(&s);
 		}
@@ -65,6 +112,11 @@ void wq_hud_set_compact(int compact)
 void wq_hud_set_rate(int on)
 {
 	g_hud_rate = on ? 1 : 0;
+}
+
+void wq_hud_set_auto(int on)
+{
+	g_hud_auto = on ? 1 : 0;
 }
 
 int wq_hud_runtime_set(int on)

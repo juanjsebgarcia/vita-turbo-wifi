@@ -247,6 +247,8 @@ typedef struct {
 	int roamlvl;
 	/* "HUD data rate": 1 = a DOWN/UP line on the HUD. */
 	int hudrate;
+	/* "HUD only on problems": 1 = hidden while Wi-Fi is fine. */
+	int hudauto;
 } WqUiState;
 
 #define WQ_UI_CMD_MAX 64              /* command buffer size for wqUiSubmit/Drain */

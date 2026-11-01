@@ -299,26 +299,26 @@ static const char *const g_tbl[WT_I18N_COUNT][WT_LANG_COUNT] = {
 
 /* WT_I18N_HINT_HUD */
 {
-	"Wi-Fiの状態を画面上にリアルタイム表示します。コンパクト：ネットワーク、電波強度、チャンネルを1行で表示。拡張：リンク速度、BSSID、電力プロファイル、カスタムMACアドレス使用時はそのアドレスも表示。",
-	"Show live Wi-Fi status over the screen. Compact: one line with the network, signal and channel. Extended: adds link speed, BSSID, power profile and, with a custom MAC address, the address.",
-	"Affiche l'état du Wi-Fi en temps réel à l'écran. Compact : une ligne avec le réseau, le signal et le canal. Étendu : ajoute le débit, le BSSID, le profil d'énergie et, avec une adresse MAC personnalisée, l'adresse.",
-	"Muestra el estado del Wi-Fi en tiempo real en pantalla. Compacto: una línea con la red, la señal y el canal. Extendido: añade la velocidad del enlace, el BSSID, el perfil de energía y, con una dirección MAC personalizada, la dirección.",
-	"Zeigt den WLAN-Status live auf dem Bildschirm. Kompakt: eine Zeile mit Netzwerk, Signal und Kanal. Erweitert: zusätzlich Verbindungsgeschwindigkeit, BSSID, Energieprofil und bei benutzerdefinierter MAC-Adresse die Adresse.",
-	"Mostra lo stato del Wi-Fi in tempo reale sullo schermo. Compatto: una riga con rete, segnale e canale. Esteso: aggiunge velocità del collegamento, BSSID, profilo energetico e, con un indirizzo MAC personalizzato, l'indirizzo.",
-	"Toont de wifistatus live op het scherm. Compact: één regel met netwerk, signaal en kanaal. Uitgebreid: voegt verbindingssnelheid, BSSID, energieprofiel en, bij een aangepast MAC-adres, het adres toe.",
-	"Mostra o estado do Wi-Fi em tempo real no ecrã. Compacto: uma linha com a rede, o sinal e o canal. Alargado: acrescenta a velocidade da ligação, o BSSID, o perfil de energia e, com um endereço MAC personalizado, o endereço.",
-	"Показывает состояние Wi-Fi на экране в реальном времени. Компактно: одна строка с сетью, сигналом и каналом. Расширенно: добавляет скорость соединения, BSSID, профиль питания и, если задан свой MAC-адрес, этот адрес.",
-	"화면에 Wi-Fi 상태를 실시간으로 표시합니다. 간단히: 네트워크, 신호, 채널을 한 줄로 표시. 자세히: 링크 속도, BSSID, 전원 프로필, 사용자 지정 MAC 주소 사용 시 해당 주소를 추가로 표시.",
-	"在畫面上即時顯示 Wi-Fi 狀態。精簡：以一行顯示網路、訊號與頻道。詳細：另外顯示連線速度、BSSID、電源設定檔，以及使用自訂 MAC 位址時的位址。",
-	"在屏幕上实时显示 Wi-Fi 状态。精简：以一行显示网络、信号和频道。详细：另外显示连接速度、BSSID、电源配置，以及使用自定义 MAC 地址时的地址。",
-	"Näyttää Wi-Fi-tilan reaaliajassa näytöllä. Tiivis: yksi rivi verkosta, signaalista ja kanavasta. Laaja: lisää yhteysnopeuden, BSSID:n, virtaprofiilin ja mukautetun MAC-osoitteen ollessa käytössä osoitteen.",
-	"Visar Wi-Fi-status i realtid på skärmen. Kompakt: en rad med nätverk, signal och kanal. Utökad: lägger till länkhastighet, BSSID, energiprofil och, med en anpassad MAC-adress, adressen.",
-	"Viser Wi-Fi-status live på skærmen. Kompakt: én linje med netværk, signal og kanal. Udvidet: tilføjer forbindelseshastighed, BSSID, strømprofil og, med en brugerdefineret MAC-adresse, adressen.",
-	"Viser Wi-Fi-status live på skjermen. Kompakt: én linje med nettverk, signal og kanal. Utvidet: legger til tilkoblingshastighet, BSSID, strømprofil og, med en egendefinert MAC-adresse, adressen.",
-	"Pokazuje stan Wi-Fi na ekranie na żywo. Kompaktowy: jeden wiersz z siecią, sygnałem i kanałem. Rozszerzony: dodaje szybkość łącza, BSSID, profil zasilania oraz, przy własnym adresie MAC, ten adres.",
-	"Mostra o status do Wi-Fi em tempo real na tela. Compacto: uma linha com a rede, o sinal e o canal. Estendido: adiciona a velocidade do link, o BSSID, o perfil de energia e, com um endereço MAC personalizado, o endereço.",
-	"Show live Wi-Fi status over the screen. Compact: one line with the network, signal and channel. Extended: adds link speed, BSSID, power profile and, with a custom MAC address, the address.",
-	"Wi-Fi durumunu ekranda canlı gösterir. Kompakt: ağ, sinyal ve kanal tek satırda. Genişletilmiş: bağlantı hızı, BSSID, güç profili ve özel bir MAC adresi kullanılıyorsa bu adresi ekler."
+	"Wi-Fiの状態を画面上にリアルタイム表示します。コンパクト：ネットワーク、電波強度、チャンネルを1行で表示。拡張：リンク速度、BSSID、電力プロファイル、MACアドレスが「カスタム」または「ネットワークごと」のときは使用中のアドレスも表示。",
+	"Show live Wi-Fi status over the screen. Compact: one line with the network, signal and channel. Extended: adds link speed, BSSID, power profile and, in Custom or Per network MAC mode, the address in use.",
+	"Affiche l'état du Wi-Fi en temps réel à l'écran. Compact : une ligne avec le réseau, le signal et le canal. Étendu : ajoute le débit, le BSSID, le profil d'énergie et, en mode MAC « Personnalisée » ou « Par réseau », l'adresse utilisée.",
+	"Muestra el estado del Wi-Fi en tiempo real en pantalla. Compacto: una línea con la red, la señal y el canal. Extendido: añade la velocidad del enlace, el BSSID, el perfil de energía y, en el modo MAC «Personalizada» o «Por red», la dirección en uso.",
+	"Zeigt den WLAN-Status live auf dem Bildschirm. Kompakt: eine Zeile mit Netzwerk, Signal und Kanal. Erweitert: zusätzlich Verbindungsgeschwindigkeit, BSSID, Energieprofil und im MAC-Modus „Benutzerdefiniert“ oder „Pro Netzwerk“ die verwendete Adresse.",
+	"Mostra lo stato del Wi-Fi in tempo reale sullo schermo. Compatto: una riga con rete, segnale e canale. Esteso: aggiunge velocità del collegamento, BSSID, profilo energetico e, in modalità MAC «Personalizzato» o «Per rete», l'indirizzo in uso.",
+	"Toont de wifistatus live op het scherm. Compact: één regel met netwerk, signaal en kanaal. Uitgebreid: voegt verbindingssnelheid, BSSID, energieprofiel en, in de MAC-modus 'Aangepast' of 'Per netwerk', het gebruikte adres toe.",
+	"Mostra o estado do Wi-Fi em tempo real no ecrã. Compacto: uma linha com a rede, o sinal e o canal. Alargado: acrescenta a velocidade da ligação, o BSSID, o perfil de energia e, no modo MAC \"Personalizado\" ou \"Por rede\", o endereço em uso.",
+	"Показывает состояние Wi-Fi на экране в реальном времени. Компактно: одна строка с сетью, сигналом и каналом. Расширенно: добавляет скорость соединения, BSSID, профиль питания и, в режиме MAC «Своё» или «Для каждой сети», используемый адрес.",
+	"화면에 Wi-Fi 상태를 실시간으로 표시합니다. 간단히: 네트워크, 신호, 채널을 한 줄로 표시. 자세히: 링크 속도, BSSID, 전원 프로필, MAC 모드가 '사용자 지정' 또는 '네트워크별'일 때는 사용 중인 주소를 추가로 표시.",
+	"在畫面上即時顯示 Wi-Fi 狀態。精簡：以一行顯示網路、訊號與頻道。詳細：另外顯示連線速度、BSSID、電源設定檔，以及 MAC 模式為「自訂」或「依網路」時使用中的位址。",
+	"在屏幕上实时显示 Wi-Fi 状态。精简：以一行显示网络、信号和频道。详细：另外显示连接速度、BSSID、电源配置，以及 MAC 模式为“自定义”或“按网络”时使用中的地址。",
+	"Näyttää Wi-Fi-tilan reaaliajassa näytöllä. Tiivis: yksi rivi verkosta, signaalista ja kanavasta. Laaja: lisää yhteysnopeuden, BSSID:n, virtaprofiilin ja MAC-tilassa ”Mukautettu” tai ”Verkkokohtainen” käytössä olevan osoitteen.",
+	"Visar Wi-Fi-status i realtid på skärmen. Kompakt: en rad med nätverk, signal och kanal. Utökad: lägger till länkhastighet, BSSID, energiprofil och, i MAC-läget ”Anpassad” eller ”Per nätverk”, adressen som används.",
+	"Viser Wi-Fi-status live på skærmen. Kompakt: én linje med netværk, signal og kanal. Udvidet: tilføjer forbindelseshastighed, BSSID, strømprofil og, i MAC-tilstanden \"Brugerdefineret\" eller \"Pr. netværk\", den adresse, der bruges.",
+	"Viser Wi-Fi-status live på skjermen. Kompakt: én linje med nettverk, signal og kanal. Utvidet: legger til tilkoblingshastighet, BSSID, strømprofil og, i MAC-modusen «Egendefinert» eller «Per nettverk», adressen som brukes.",
+	"Pokazuje stan Wi-Fi na ekranie na żywo. Kompaktowy: jeden wiersz z siecią, sygnałem i kanałem. Rozszerzony: dodaje szybkość łącza, BSSID, profil zasilania oraz, w trybie MAC „Własny” lub „Dla każdej sieci”, używany adres.",
+	"Mostra o status do Wi-Fi em tempo real na tela. Compacto: uma linha com a rede, o sinal e o canal. Estendido: adiciona a velocidade do link, o BSSID, o perfil de energia e, no modo MAC \"Personalizado\" ou \"Por rede\", o endereço em uso.",
+	"Show live Wi-Fi status over the screen. Compact: one line with the network, signal and channel. Extended: adds link speed, BSSID, power profile and, in Custom or Per network MAC mode, the address in use.",
+	"Wi-Fi durumunu ekranda canlı gösterir. Kompakt: ağ, sinyal ve kanal tek satırda. Genişletilmiş: bağlantı hızı, BSSID, güç profili ve MAC modu \"Özel\" ya da \"Ağ başına\" iken kullanılan adresi ekler."
 },
 
 /* WT_I18N_HINT_RECONNECT */
@@ -1320,6 +1320,54 @@ static const char *const g_tbl[WT_I18N_COUNT][WT_LANG_COUNT] = {
 	"Mostra também a velocidade atual de download (DOWN) e upload (UP) em uma linha própria do HUD, em megabits por segundo (Mb/s), em qualquer modo do HUD.",
 	"Also show the current download (DOWN) and upload (UP) speed on the HUD, on a line of its own, in megabits per second (Mb/s). Shown in every HUD mode.",
 	"HUD'da geçerli indirme (DOWN) ve yükleme (UP) hızını da ayrı bir satırda, saniyede megabit (Mb/s) olarak gösterir; tüm HUD modlarında."
+},
+
+/* WT_I18N_ROW_HUDAUTO - "HUD only on problems" */
+{
+	"問題があるときだけHUDを表示",
+	"HUD only on problems",
+	"HUD seulement en cas de problème",
+	"HUD solo si hay problemas",
+	"HUD nur bei Problemen",
+	"HUD solo in caso di problemi",
+	"HUD alleen bij problemen",
+	"HUD só com problemas",
+	"HUD только при проблемах",
+	"문제가 있을 때만 HUD 표시",
+	"僅在有問題時顯示 HUD",
+	"仅在有问题时显示 HUD",
+	"HUD vain ongelmatilanteissa",
+	"HUD bara vid problem",
+	"HUD kun ved problemer",
+	"HUD bare ved problemer",
+	"HUD tylko przy problemach",
+	"HUD só quando houver problemas",
+	"HUD only on problems",
+	"HUD yalnızca sorun olduğunda"
+},
+
+/* WT_I18N_HINT_HUDAUTO - "Hide the HUD while Wi-Fi is working well..." */
+{
+	"Wi-Fiが正常なときはHUDを隠します。切断中、接続中、アドレス取得中（DHCP）、または信号が「ローミングの信号レベル」以下のときに表示され、回復から5秒後に消えます。",
+	"Hide the HUD while Wi-Fi is working well. It appears while Wi-Fi is disconnected, connecting or getting an address (DHCP), or when the signal stays at or below the Roaming signal level, and hides 5 s after it recovers.",
+	"Masque le HUD quand le Wi-Fi fonctionne bien. Il apparaît quand le Wi-Fi est déconnecté, se connecte ou obtient une adresse (DHCP), ou quand le signal reste au « Seuil de signal d'itinérance » ou en dessous, et disparaît 5 s après le retour à la normale.",
+	"Oculta el HUD mientras el Wi-Fi funciona bien. Aparece cuando el Wi-Fi está desconectado, conectándose u obteniendo una dirección (DHCP), o cuando la señal se mantiene en el «Nivel de señal para roaming» o por debajo, y se oculta 5 s después de recuperarse.",
+	"Blendet das HUD aus, solange das Wi-Fi gut funktioniert. Es erscheint, wenn das Wi-Fi getrennt ist, sich verbindet oder eine Adresse bezieht (DHCP) oder wenn das Signal auf oder unter der „Signalschwelle fürs Roaming“ bleibt, und verschwindet 5 s nach der Erholung.",
+	"Nasconde l'HUD quando il Wi-Fi funziona bene. Appare quando il Wi-Fi è disconnesso, si sta connettendo o sta ottenendo un indirizzo (DHCP), o quando il segnale resta pari o inferiore alla «Soglia di segnale per il roaming», e scompare 5 s dopo il ripristino.",
+	"Verbergt de HUD zolang de Wi-Fi goed werkt. Hij verschijnt als de Wi-Fi verbroken is, verbinding maakt of een adres ophaalt (DHCP), of als het signaal op of onder de 'Signaaldrempel voor roaming' blijft, en verdwijnt 5 s na het herstel.",
+	"Oculta o HUD enquanto o Wi-Fi funciona bem. Aparece quando o Wi-Fi está desligado, a ligar ou a obter um endereço (DHCP), ou quando o sinal fica no «Nível de sinal para roaming» ou abaixo, e desaparece 5 s depois de recuperar.",
+	"Скрывает HUD, пока Wi-Fi работает нормально. HUD появляется, когда Wi-Fi отключён, подключается или получает адрес (DHCP), либо когда сигнал держится на «Пороге сигнала для роуминга» или ниже, и исчезает через 5 с после восстановления.",
+	"Wi-Fi가 잘 작동하는 동안 HUD를 숨깁니다. Wi-Fi 연결이 끊겼거나, 연결 중이거나, 주소를 받는 중(DHCP)이거나, 신호가 '로밍 신호 수준' 이하로 유지되면 나타나고, 회복 후 5초 뒤에 사라집니다.",
+	"Wi-Fi 運作正常時隱藏 HUD。當 Wi-Fi 中斷、正在連線或取得位址（DHCP），或訊號持續等於或低於「漫遊訊號門檻」時顯示，恢復 5 秒後隱藏。",
+	"Wi-Fi 工作正常时隐藏 HUD。当 Wi-Fi 断开、正在连接或获取地址（DHCP），或信号持续等于或低于“漫游信号阈值”时显示，恢复 5 秒后隐藏。",
+	"Piilottaa HUD:n, kun Wi-Fi toimii hyvin. Se tulee näkyviin, kun Wi-Fi-yhteys on katkennut, muodostuu tai hakee osoitetta (DHCP) tai kun signaali pysyy ”Verkkovierailun signaalitason” tasolla tai sen alla, ja katoaa 5 s palautumisen jälkeen.",
+	"Döljer HUD:en medan Wi-Fi fungerar bra. Den visas när Wi-Fi är frånkopplat, ansluter eller hämtar en adress (DHCP), eller när signalen ligger på eller under ”Signalnivå för roaming”, och döljs 5 s efter att det återhämtat sig.",
+	"Skjuler HUD'en, mens Wi-Fi fungerer godt. Den vises, når Wi-Fi er afbrudt, opretter forbindelse eller henter en adresse (DHCP), eller når signalet ligger på eller under \"Signalniveau for roaming\", og skjules 5 s efter, at det er normalt igen.",
+	"Skjuler HUD-en mens Wi-Fi fungerer godt. Den vises når Wi-Fi er frakoblet, kobler til eller henter en adresse (DHCP), eller når signalet ligger på eller under «Signalnivå for roaming», og skjules 5 s etter at det har tatt seg opp igjen.",
+	"Ukrywa HUD, gdy Wi-Fi działa dobrze. Pojawia się, gdy Wi-Fi jest rozłączone, łączy się lub pobiera adres (DHCP) albo gdy sygnał utrzymuje się na poziomie „Próg sygnału roamingu” lub niżej, i znika 5 s po powrocie do normy.",
+	"Oculta o HUD enquanto o Wi-Fi funciona bem. Ele aparece quando o Wi-Fi está desconectado, conectando ou obtendo um endereço (DHCP), ou quando o sinal fica no \"Nível de sinal para roaming\" ou abaixo, e some 5 s depois de se recuperar.",
+	"Hide the HUD while Wi-Fi is working well. It appears while Wi-Fi is disconnected, connecting or getting an address (DHCP), or when the signal stays at or below the Roaming signal level, and hides 5 s after it recovers.",
+	"Wi-Fi iyi çalışırken HUD'yi gizler. Wi-Fi bağlantısı kesildiğinde, bağlanırken veya adres alırken (DHCP) ya da sinyal \"Dolaşım sinyal eşiği\" düzeyinde veya altında kaldığında görünür ve düzeldikten 5 sn sonra gizlenir."
 }
 };
 
