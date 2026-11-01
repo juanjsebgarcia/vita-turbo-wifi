@@ -66,6 +66,7 @@ target_link_libraries(wifiturbo_kernel
   SceIofilemgrForDriver_stub    # ksceIoOpen/Write/... (kernel logfile)
   SceCpuForDriver_stub          # dcache clean (rxring.c)
   SceSysconForDriver_stub       # wqForceReboot (receive-buffer watchdog)
+  SceSblSsMgrForDriver_stub     # ksceSblRngPseudoRandomNumber (per-network scan address)
 )
 # taiHEN modules enter via module_start, not crt0's main - drop startup files.
 target_link_options(wifiturbo_kernel PRIVATE -nostartfiles)

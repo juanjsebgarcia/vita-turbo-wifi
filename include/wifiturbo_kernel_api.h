@@ -128,6 +128,28 @@ typedef struct WqMacStatus {
 } WqMacStatus;
 int wqMacAddr(int op, unsigned mac0, unsigned mac1, WqMacStatus *out);
 
+/* An address per network (kernel/macaddr.c). on = 1 with the console's
+ * 16-byte secret (never all zero), 0 off (never fails). While on, every join
+ * sets a locally administered address from a keyed hash of the network name
+ * before it associates, and every scan while not connected a random one; if
+ * one cannot be set, the join is refused / the scan skipped. The kernel also
+ * starts it by itself at boot when settings.bin says so. */
+int wqMacPernet(int on, const uint32_t *key);
+
+typedef struct WqMacPernetStats {
+	uint32_t on;
+	uint32_t joins;         /* joins seen                                       */
+	uint32_t sets;          /* addresses set (joins and scans)                  */
+	uint32_t skips;         /* already on the right address                     */
+	uint32_t refused;       /* joins refused: the address could not be set      */
+	uint32_t scans;         /* scans while not connected                        */
+	uint32_t scans_skipped; /* scans skipped: the address could not be set      */
+	int32_t  last_rc;       /* last SET result                                  */
+	uint8_t  last[6];       /* last address set                                 */
+	uint8_t  pad[2];
+} WqMacPernetStats;
+int wqMacPernetStats(WqMacPernetStats *out);
+
 /* A small negative WQ_ERR_* returned by a kernel export reaches user code
  * with bit 30 cleared (the syscall layer: -5 arrives as 0xBFFFFFFB). Compare
  * kernel results with a WQ_ERR_* value only through this. */
@@ -207,7 +229,7 @@ typedef struct {
 	                 * (127 slots) / 2 maximum (149). */
 	int hudpos;     /* WQ_HUD_POS_* - which screen corner the overlay draws in. */
 	int hudgame;    /* In-game HUD: 1 = also draw over games and apps. Default 0. */
-	int macmode;    /* EXPERIMENTAL MAC address: 0 stock / 1 custom.           */
+	int macmode;    /* EXPERIMENTAL MAC address: 0 stock / 1 custom / 2 per network. */
 	int mac0, mac1; /* custom address: bytes 0..3, bytes 4..5 (wqMacAddr form) */
 	int fmac0, fmac1; /* the console's own address, same form; 0 = not known
 	                 * yet. */
@@ -218,6 +240,9 @@ typedef struct {
 	 * is shorter and the missing tail loads as 0. */
 	int macuse0, macuse1;
 	int macbusy;
+	/* The per-network secret (16 random bytes, made once; 0 = not made yet).
+	 * Saved; never shown. */
+	int pnkey[4];
 } WqUiState;
 
 #define WQ_UI_CMD_MAX 64              /* command buffer size for wqUiSubmit/Drain */

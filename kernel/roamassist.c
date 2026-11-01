@@ -77,6 +77,8 @@ static SceUID         g_join_hook = -1;
 static tai_hook_ref_t g_join_ref;
 static SceUID         g_scan_hook = -1;
 static tai_hook_ref_t g_scan_ref;
+static SceUID         g_bgscan_hook = -1;
+static tai_hook_ref_t g_bgscan_ref;
 
 /* Arm state (written by the syscall, consumed by the join hook). */
 static volatile int      g_armed;
@@ -186,8 +188,17 @@ static void reorder(uint8_t *buf, int len)
 	}
 }
 
+static volatile roamassist_scan_cb g_scan_cb;
+static volatile int g_join_depth;         /* joins in flight, armed or not */
+
 static int hook_scan(void *ctx, uint8_t *buf, int len)
 {
+	roamassist_scan_cb scb = g_scan_cb;
+	if (scb && !g_join_depth && !g_in_join) { /* not a join's own scan */
+		int s = scb(ctx);
+		if (s < 0)
+			return s;
+	}
 	int r = TAI_CONTINUE(int, g_scan_ref, ctx, buf, len);
 	if (g_in_join && r >= 0 && buf && ksceKernelGetThreadId() == g_join_tid) {
 		g_st.scans++;
@@ -196,7 +207,43 @@ static int hook_scan(void *ctx, uint8_t *buf, int len)
 	return r;
 }
 
+/* Background-scan start (ioctl 0x50100002; only the PSP emulator uses it):
+ * the firmware then scans by itself on the address the chip holds, so it gets
+ * the same check as a scan. */
+static int hook_bgscan(void *ctx, void *req, int len)
+{
+	roamassist_scan_cb scb = g_scan_cb;
+	if (scb && !g_join_depth && !g_in_join) {
+		int s = scb(ctx);
+		if (s < 0)
+			return s;
+	}
+	return TAI_CONTINUE(int, g_bgscan_ref, ctx, req, len);
+}
+
+static volatile roamassist_join_cb g_join_cb;
+
+static int hook_join_inner(void *ctx, uint8_t *req, int len);
+
+/* Every join: the per-network callback first, then the roam assist; counted
+ * so the scan hook can tell a join's own scans from SceShell's other scans. */
 static int hook_join(void *ctx, uint8_t *req, int len)
+{
+	roamassist_join_cb cb = g_join_cb;
+	__atomic_add_fetch(&g_join_depth, 1, __ATOMIC_SEQ_CST);
+	int r = 0;
+	if (cb && !g_in_join && req && len >= REQ_MIN_LEN) {
+		uint32_t n = *(const uint32_t *)(req + REQ_OFF_SSIDLEN);
+		if (n <= 32)
+			r = cb(ctx, req + REQ_OFF_SSID, n);
+	}
+	if (r >= 0)
+		r = hook_join_inner(ctx, req, len);
+	__atomic_sub_fetch(&g_join_depth, 1, __ATOMIC_SEQ_CST);
+	return r;
+}
+
+static int hook_join_inner(void *ctx, uint8_t *req, int len)
 {
 	if (!g_armed || g_in_join)
 		return TAI_CONTINUE(int, g_join_ref, ctx, req, len);
@@ -237,22 +284,37 @@ static int hook_join(void *ctx, uint8_t *req, int len)
 	return r;
 }
 
+static int install_hooks_once(void);
+static volatile int g_installing;
+
+/* Two callers on different threads (the roam arm, the per-network switch):
+ * one at a time, or both could hook the same function. */
 static int install_hooks(void)
 {
-	if (g_join_hook >= 0 && g_scan_hook >= 0)
+	while (__atomic_exchange_n(&g_installing, 1, __ATOMIC_SEQ_CST))
+		ksceKernelDelayThread(1000);
+	int r = install_hooks_once();
+	__atomic_store_n(&g_installing, 0, __ATOMIC_SEQ_CST);
+	return r;
+}
+
+static int install_hooks_once(void)
+{
+	if (g_join_hook >= 0 && g_scan_hook >= 0 && g_bgscan_hook >= 0)
 		return WQ_OK;
 	const WlanbtLayout *l = wlanbt_layout();
 	SceUID modid;
 	uintptr_t text;
-	if (!l || wlanbt_text(l->scan + 8, &modid, &text) != WQ_OK)
+	if (!l || wlanbt_text(l->bgscan + 8, &modid, &text) != WQ_OK)
 		return WQ_ERR_RESOLVE;
-	const uint32_t off_join = l->join, off_scan = l->scan;
+	const uint32_t off_join = l->join, off_scan = l->scan, off_bg = l->bgscan;
 	const volatile uint8_t *t = (const volatile uint8_t *)text;
 	static const uint8_t join0[4] = { 0x2D, 0xE9, 0xF0, 0x4F };
 	static const uint8_t scan0[8] = { 0xF8, 0xB5, 0x00, 0xF1, 0x08, 0x04, 0x05, 0x46 };
+	static const uint8_t bg0[8]   = { 0x2D, 0xE9, 0xF0, 0x4F, 0x00, 0xF1, 0x08, 0x07 };
 	for (int i = 0; i < 8; i++) {
 		if ((i < 4 && t[off_join + i] != join0[i]) ||
-		    t[off_scan + i] != scan0[i]) {
+		    t[off_scan + i] != scan0[i] || t[off_bg + i] != bg0[i]) {
 			WQ_KLOGW("roamassist: original bytes mismatch (join %02x%02x%02x%02x "
 			         "scan %02x%02x%02x%02x) - unexpected SceWlanBt, refusing",
 			         t[off_join], t[off_join + 1],
@@ -272,6 +334,16 @@ static int install_hooks(void)
 			return WQ_ERR_RESOLVE;
 		}
 	}
+	if (g_bgscan_hook < 0) {
+		g_bgscan_hook = taiHookFunctionOffsetForKernel(KERNEL_PID, &g_bgscan_ref, modid, 0,
+		                                               off_bg, 1, hook_bgscan);
+		if (g_bgscan_hook < 0) {
+			WQ_KLOGW("roamassist: background-scan hook failed (0x%08x)",
+			         (unsigned)g_bgscan_hook);
+			g_bgscan_hook = -1;
+			return WQ_ERR_RESOLVE;
+		}
+	}
 	if (g_join_hook < 0) {
 		g_join_hook = taiHookFunctionOffsetForKernel(KERNEL_PID, &g_join_ref, modid, 0,
 		                                             off_join, 1, hook_join);
@@ -282,8 +354,8 @@ static int install_hooks(void)
 		}
 	}
 	g_st.hooked = 1;
-	WQ_KLOGI("roamassist: hooked join +0x%x + scan +0x%x", (unsigned)off_join,
-	         (unsigned)off_scan);
+	WQ_KLOGI("roamassist: hooked join +0x%x + scan +0x%x + background scan +0x%x",
+	         (unsigned)off_join, (unsigned)off_scan, (unsigned)off_bg);
 	return WQ_OK;
 }
 
@@ -312,6 +384,33 @@ int roamassist_arm(unsigned flags, const uint8_t bssid[6])
 	return WQ_OK;
 }
 
+int roamassist_set_join_cb(roamassist_join_cb cb)
+{
+	if (cb) {
+		int r = install_hooks();
+		if (r != WQ_OK)
+			return r;
+	}
+	g_join_cb = cb;
+	return WQ_OK;
+}
+
+int roamassist_set_scan_cb(roamassist_scan_cb cb)
+{
+	if (cb) {
+		int r = install_hooks();
+		if (r != WQ_OK)
+			return r;
+	}
+	g_scan_cb = cb;
+	return WQ_OK;
+}
+
+int roamassist_join_in_flight(void)
+{
+	return g_join_depth || g_in_join;
+}
+
 int roamassist_get_status(WqRoamAssistStatus *out)
 {
 	if (!out)
@@ -326,5 +425,6 @@ void roamassist_fini(void)
 	g_armed = 0;
 	if (g_join_hook >= 0) { taiHookReleaseForKernel(g_join_hook, g_join_ref); g_join_hook = -1; }
 	if (g_scan_hook >= 0) { taiHookReleaseForKernel(g_scan_hook, g_scan_ref); g_scan_hook = -1; }
+	if (g_bgscan_hook >= 0) { taiHookReleaseForKernel(g_bgscan_hook, g_bgscan_ref); g_bgscan_hook = -1; }
 	g_st.hooked = 0;
 }

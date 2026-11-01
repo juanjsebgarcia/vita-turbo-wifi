@@ -157,6 +157,24 @@ int wqRxRing(int op, WqRxRingStats *out)
 	return r;
 }
 
+/* An address per network (macaddr.c). key: 16 bytes in user memory. */
+int wqMacPernet(int on, const uint32_t *key)
+{
+	uint32_t k[4] = { 0, 0, 0, 0 };
+	if (on && (!key || ksceKernelMemcpyUserToKernel(k, key, sizeof(k)) < 0))
+		return WQ_ERR_ARG;
+	return macaddr_pernet(on, k);
+}
+
+int wqMacPernetStats(WqMacPernetStats *out)
+{
+	WqMacPernetStats s;
+	macaddr_pernet_stats(&s);
+	if (out)
+		copy_to_user(out, &s, sizeof(s));
+	return WQ_OK;
+}
+
 /* EXPERIMENTAL: chosen MAC address (macaddr.c), WQ_MAC_OP_*. */
 int wqMacAddr(int op, unsigned mac0, unsigned mac1, WqMacStatus *out)
 {
@@ -227,6 +245,7 @@ int module_start(SceSize argc, const void *args)
 		WQ_KLOGW("hud_init: HUD hook NOT installed (rc=%d)", rh);
 
 	macaddr_init();
+	macaddr_pernet_boot();
 	uibridge_init();
 	WQ_KLOGI("kernel start complete");
 	return 0; /* SCE_KERNEL_START_SUCCESS */
@@ -236,6 +255,7 @@ int module_stop(SceSize argc, const void *args)
 {
 	(void)argc; (void)args;
 	WQ_KLOGI("=== SceWifiTurbo kernel stop ===");
+	macaddr_pernet_stop(); /* the per-network boot thread, before its hooks go  */
 	chipobserve_fini();   /* remove the RSSI_INFO callback hook if installed    */
 	roamassist_fini();    /* remove the join-path roam hooks if installed       */
 	psprofile_dtim_set(0); /* restore the stock PS_MODE_ENH builder          */

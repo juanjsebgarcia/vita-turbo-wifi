@@ -106,10 +106,10 @@ buffer drops packets, and TCP slows down after every loss.
 - 🧭 **Smart Mesh Roaming**. For mesh and multi-AP setups:
   on a weak signal it rescans every channel and joins the strongest access
   point of the same network.
-- 🎭 **MAC address (experimental).** Use the Vita's own Wi-Fi MAC address, or
-  a custom one: type it in, or randomize it (the maker half is kept). Applied
-  before the Vita connects at boot, and again after sleep. See
-  [MAC address](#mac-address-experimental).
+- 🎭 **MAC address (experimental).** Use the Vita's own Wi-Fi MAC address, a
+  custom one (type it in, or randomize it), or **a different address for
+  every network**, the way phones do it. Set before the Vita connects at boot,
+  and again after sleep. See [MAC address](#mac-address-experimental).
 - 🧠 **Wi-Fi receive buffer (experimental).** Gives the Wi-Fi chip more room
   for incoming data, so bursts stop overflowing it: up to **+18% TCP
   download** and steadier uploads. See
@@ -168,17 +168,17 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 | Option | What it does | Default |
 |---|---|---|
 | **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off on its timer, but the Vita stays awake behind it; a single press of the power button is what puts it to sleep. While charging, standby is allowed so the battery reaches 100%. | On |
-| **Wi-Fi HUD overlay** | *Off*, *Compact* (one line: network, signal, channel) or *Extended* (adds link width, SNR, access point, profile and, in *Custom* MAC address mode, the address in use). | Off |
+| **Wi-Fi HUD overlay** | *Off*, *Compact* (one line: network, signal, channel) or *Extended* (adds link width, SNR, access point, profile and, in *Custom* or *Per network* MAC address mode, the address in use). | Off |
 | **HUD position** | Which corner of the screen the HUD sits in. | Top left |
 | **In-game HUD** | Also shows the HUD over games and apps. When off, it shows only on the Home screen, in Settings and in the quick menu (press the PS button). | Off |
-| **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up. | On |
+| **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up. (After waking from sleep, Wi-Fi Turbo asks the Vita to connect straight away, with this on or off.) | On |
 | **Smart Mesh Roaming** | On sustained weak signal, rescans and joins the strongest AP of the same network. | Off |
 | **40 MHz** | Lets the Vita negotiate 40 MHz channels. Needs an access point with 2.4 GHz set to 40 MHz. | Off |
 | **Power profile** | *Max performance*, *Balanced* or *Battery saver* (below). | Balanced |
 | **Wi-Fi receive buffer** | *Default*, *Enhanced* or *Maximum* (experimental, below). Changing it turns Wi-Fi off and on for about 20 s. | Default |
-| **MAC address** | *Default* (the Vita's own) or *Custom* (experimental, below). Choosing *Custom* makes a new random address. | Default |
-| **Custom MAC address** | Type an address (12 hex digits, colons optional). Typing one switches to *Custom*. Greyed out in *Default*. | |
-| **Randomize MAC address** | A new random address that keeps the maker half of the Vita's own. Greyed out in *Default*. | |
+| **MAC address** | *Default* (the Vita's own), *Custom* or *Per network* (experimental, below). Choosing *Custom* makes a new random address. | Default |
+| **Custom MAC address** | Type an address (12 hex digits, colons optional). Typing one switches to *Custom*. Greyed out outside *Custom*. | |
+| **Randomize MAC address** | A new random address that keeps the maker half of the Vita's own. Greyed out outside *Custom*. | |
 | **Current MAC address** | The address in use, for reference; marked *not applied* if the custom one didn't take. | |
 | **Developer mode (remote control)** | Opens the remote-control port 1339 on your network, for scripting and testing (below). | Off |
 
@@ -218,12 +218,23 @@ it. *MAC address* lets the Vita use a different one on Wi-Fi.
   address*: type one in, or press *Randomize MAC address* for a new random
   one. A random address keeps the first half (the maker part) of the Vita's
   own, so it still looks like a Vita on your network.
+- **Per network** gives every Wi-Fi network its own address, the same each
+  time you connect to it, like the private addresses on phones: your home
+  router keeps seeing one device, but different networks can't tell they are
+  seeing the same console, or that it is a PS Vita. The address is set before
+  the Vita joins a network, from the moment it starts up. While not connected, the Vita looks for networks with a random
+  address, a new one after each disconnect. If an address can't be set, the
+  Vita doesn't connect rather than use the wrong one.
+- The per-network addresses come from a random key made once on your Vita and
+  kept with Wi-Fi Turbo's settings. Resetting those settings, or saving them
+  with an older Wi-Fi Turbo, makes a new key, so every network then sees a new
+  address. An older Wi-Fi Turbo reads *Per network* as *Custom*.
 - Any change disconnects Wi-Fi for a few seconds and reconnects with the new
   address. Your router sees a **new device**: the Vita will likely get a
   **different IP address**, and anything set up for its old address (a
   reserved IP, a MAC filter, parental controls) won't apply to the new one.
-- A custom address is set again automatically after a reboot (before the Vita
-  first connects) and after sleep. Switching back to *Default* restores the
+- A custom or per-network address is set again automatically after a reboot
+  (before the Vita first connects) and after sleep. Switching back to *Default* restores the
   Vita's own address. Nothing is changed permanently: holding L at boot (no
   plugins) always starts on the Vita's own address.
 - Addresses that can't work are refused: anything that isn't 12 hex digits,
@@ -281,7 +292,7 @@ which uses ports 1337 and 1338. Send one command per connection, for example
 | `confirm` / `revert` | Keep or undo a pending remote change |
 | `keepwifi on \| off`, `autoreconnect on \| off` | The Settings toggles |
 | `hud off \| compact \| extended` | The HUD (`on` is *extended*) |
-| `mac status`, `mac stock \| custom \| random`, `mac set <addr>` | MAC address: show all copies, or change it |
+| `mac status`, `mac stock \| custom \| random`, `mac set <addr>`, `mac pernet on` | MAC address: show all copies, or change it |
 | `devmode off` | Close the remote-control port (turn it back on in Settings) |
 | `roam on \| off`, `roam now`, `roam status` | Smart Mesh Roaming |
 | `icm` | Ask the system to connect to your saved networks now |

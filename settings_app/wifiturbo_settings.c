@@ -79,6 +79,7 @@ static const char WT_ROWS[] =
  "<list id=\"wt_macmode\" title=\"wt_t_macmode\" icon=\"tex_spanner\" hint=\"wt_h_macmode\" key=\"/CONFIG/WIFITURBO/macmode\">"
   "<list_item id=\"wt_mm0\" title=\"wt_i_stock\" value=\"0\"/>"
   "<list_item id=\"wt_mm1\" title=\"wt_i_custom\" value=\"1\"/>"
+  "<list_item id=\"wt_mm2\" title=\"wt_i_pernet\" value=\"2\"/>"
  "</list>"
  "<text_field id=\"wt_macaddr\" title=\"wt_t_macaddr\" icon=\"tex_spanner\" hint=\"wt_h_macaddr\" key=\"/CONFIG/WIFITURBO/macaddr\" keyboard_type=\"basic_latin\" max_length=\"17\" no_space=\"on\"/>"
  "<button id=\"wt_macrand\" title=\"wt_t_macrand\" icon=\"tex_spanner\" hint=\"wt_h_macrand\"/>"
@@ -142,6 +143,7 @@ static const wt_u16 *WT_TEXT(const char *id)
 	M("wt_h_rxring",    WT_I18N_HINT_RXRING)
 	M("wt_t_macmode",   WT_I18N_ROW_MACMODE)
 	M("wt_i_custom",    WT_I18N_ITEM_CUSTOM)
+	M("wt_i_pernet",    WT_I18N_ITEM_PERNET)
 	M("wt_h_macmode",   WT_I18N_HINT_MACMODE)
 	M("wt_t_macaddr",   WT_I18N_ROW_MACADDR)
 	M("wt_h_macaddr",   WT_I18N_HINT_MACADDR)
@@ -358,8 +360,8 @@ static void wt_mac_text(int w0, int w1, char *out, int cap)
 static int wt_mac_current(char *out, int cap)
 {
 	wt_seed();
-	int want0 = g_ui.macmode == 1 ? g_ui.mac0 : g_ui.fmac0;
-	int want1 = g_ui.macmode == 1 ? g_ui.mac1 : g_ui.fmac1;
+	int want0 = g_ui.macmode == 1 ? g_ui.mac0 : g_ui.macmode == 2 ? g_ui.macuse0 : g_ui.fmac0;
+	int want1 = g_ui.macmode == 1 ? g_ui.mac1 : g_ui.macmode == 2 ? g_ui.macuse1 : g_ui.fmac1;
 	int known = g_ui.macuse0 || g_ui.macuse1;
 	if (!want0 && !want1) {                       /* own address not known yet */
 		want0 = g_ui.macuse0;
@@ -486,9 +488,11 @@ static int set_hook(const char *cat, const char *name, int v)
 		} else if (s_eqn(name,"macmode",8)) {
 			/* Custom always generates a new address (the console's own first
 			 * half kept), made here so the page can show it at once; Default
-			 * goes back to the console's own address. */
-			if (v) wt_mac_new_random();
-			else   wt_submit("mac stock", NULL);
+			 * goes back to the console's own address; Per network sets an
+			 * address for each network at its next join. */
+			if (v == 1)      wt_mac_new_random();
+			else if (v == 2) wt_submit("mac pernet on", NULL);
+			else             wt_submit("mac stock", NULL);
 			wt_mac_refresh();
 			return 0;
 		} else if (s_eqn(name,"hudpos",7)) {

@@ -30,6 +30,7 @@
 #include "diag.h"             /* diag_sample - netctl connection state         */
 #include "advanced.h"         /* wq_adv_scan_read - roam pre-check scan        */
 #include "rxcycle.h"          /* rxcycle_phase - the radio is off on purpose   */
+#include "rxpreset.h"         /* rxpreset_boot_state - boot nudge              */
 #include "macaddr.h"          /* wq_mac_net_tick                               */
 #include "log.h"
 #include "../include/wifiturbo.h"
@@ -66,6 +67,22 @@ static int g_disc_ticks;
 
 /* Held by a MAC address change (user/macaddr.c) while the link is down on purpose. */
 static volatile int g_recon_hold;
+
+/* Wake / boot nudge. SceShell only reconnects by itself after a wake or at
+ * boot when "Use Wi-Fi in Power Save Mode" is on; otherwise nothing joins
+ * until the 12 s IcmConnect below. So: after a wake (and at boot when no radio
+ * power-cycle is planned), IcmConnect as soon as netctl reports disconnected
+ * with the radio on, again 3 s later if still disconnected. Not in Custom MAC
+ * mode (its re-send after the power-up asks for the join itself, after the
+ * address is set). The 5 s same-AP rejoin is skipped meanwhile: it never
+ * works after a wake or boot, and its disconnect would abort the join. */
+#define WQ_NUDGE_WINDOW_S  12
+#define WQ_NOREJOIN_S      20
+static volatile int g_wake_nudge;     /* set by the power callback / boot      */
+static volatile int g_boot_nudge = 1; /* until the boot RX preset decides      */
+static int          g_nudge_t;        /* seconds into a nudge window; 0 = none */
+static int          g_nudge_sent;     /* seconds since the first IcmConnect    */
+static int          g_norejoin;       /* seconds left without the 5 s rejoin   */
 
 void keepwifi_hold_reconnect(int on)
 {
@@ -463,9 +480,42 @@ static void reconnect_watch(void)
 	 * rebooting; a MAC address change has the link down on purpose. Turning
 	 * the radio back on or rejoining under either breaks it. */
 	int ph = rxcycle_phase();
-	if (g_recon_hold || ph == 1 || ph == 3) {
-		g_disc_ticks = 0;
+	if (g_recon_hold || ph == 1 || ph == 3 || keepwifi_power_busy()) {
+		g_disc_ticks = 0;                   /* incl. going to sleep / shutting down */
 		return;
+	}
+	if (g_boot_nudge && wq_mac_boot_done()) {   /* the MAC mode is known */
+		int bs = rxpreset_boot_state();      /* 0 not run yet, 1 deciding */
+		if (bs == 2 || wq_mac_mode() == 1)
+			g_boot_nudge = 0;                /* the cycle / the MAC boot job kicks it */
+		else if (bs == 3) {
+			g_boot_nudge = 0;
+			g_wake_nudge = 1;
+		}
+	}
+	if (g_wake_nudge) {
+		g_wake_nudge = 0;
+		g_nudge_t = 1;
+		g_nudge_sent = 0;
+		g_norejoin = WQ_NOREJOIN_S;
+	}
+	if (g_norejoin > 0)
+		g_norejoin--;
+	if (g_nudge_t > 0) {
+		if (++g_nudge_t > WQ_NUDGE_WINDOW_S || s.netctl_state != WQ_NETCTL_DISCONNECTED ||
+		    wq_mac_mode() == 1) {
+			if (s.netctl_state != WQ_NETCTL_DISCONNECTED && g_nudge_sent)
+				g_nudge_t = 0;               /* a join is under way: done */
+			else if (g_nudge_t > WQ_NUDGE_WINDOW_S || wq_mac_mode() == 1)
+				g_nudge_t = 0;
+		} else if (sceWlanGetConfiguration() & 9) {
+			if (!g_nudge_sent || g_nudge_sent == 3) {
+				WQ_LOGI("keepwifi: %s -> IcmConnect", g_nudge_sent ? "still disconnected"
+				        : "woke disconnected");
+				wq_net_icm_connect();
+			}
+			g_nudge_sent++;
+		}
 	}
 	if (s.netctl_state != WQ_NETCTL_DISCONNECTED) {
 		g_disc_ticks = 0;
@@ -489,7 +539,7 @@ static void reconnect_watch(void)
 	 *    "auto-connect now" - a full saved-profile scan/rank/join. PROVEN after
 	 *    a boot give-up (state 0->1 1s after the kick, connected ~3s later).
 	 *    30s spacing never overlaps a run. */
-	if (g_disc_ticks == 5) {
+	if (g_disc_ticks == 5 && !g_norejoin) {
 		WQ_LOGW("keepwifi: disconnected %ds -> netctl rejoin (same AP)", g_disc_ticks);
 		wq_net_rejoin();
 	} else if (g_disc_ticks >= 12 && (g_disc_ticks - 12) % 30 == 0) {
@@ -540,6 +590,8 @@ static int power_cb(int notify_id, int notify_count, int info, void *common)
 		g_sleep_req = 0;
 		WQ_LOGI("keepwifi: screen back on before sleeping - sleep cancelled");
 	}
+	if (info & SCE_POWER_CB_SYSTEM_RESUME)
+		g_wake_nudge = 1;                 /* reconnect_watch kicks a join */
 	if (info & (SCE_POWER_CB_SYSTEM_RESUMING | SCE_POWER_CB_SYSTEM_RESUME)) {
 		g_sleep_req = 0;
 		g_suspending = 0;

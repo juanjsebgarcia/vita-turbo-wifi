@@ -224,6 +224,7 @@ static uint8_t           g_saved_factory[6];
 static volatile uint32_t g_applied_powerups;
 static volatile int      g_retry;              /* last SET failed: retry      */
 static volatile int      g_applying;           /* inside apply()              */
+static uint32_t          g_key[4];             /* per-network secret          */
 static int               g_retry_n;            /* retries so far              */
 static SceInt64          g_retry_at;           /* next one, process time (us) */
 static char              g_queue[MAC_QUEUE][WQ_UI_CMD_MAX];
@@ -233,11 +234,13 @@ static uint8_t           g_job_mac[6];
 static volatile int      g_job_boot;
 static volatile int      g_boot_rx_cycle;      /* the RX buffer preset cycles at boot */
 static volatile int      g_fast;               /* boot: watch the power-up closely  */
+static volatile int      g_boot_done;          /* wq_mac_boot has set the mode      */
+static volatile int      g_pn_retry;           /* per-network not on yet: retry     */
 
 static void save_state(void)
 {
 	char line[40], *p = line, *end = line + sizeof(line);
-	p = put(p, end, g_mode ? "mac state 1 " : "mac state 0 ");
+	p = put(p, end, g_mode == 2 ? "mac state 2 " : g_mode ? "mac state 1 " : "mac state 0 ");
 	put_mac_sep(p, end, g_custom, 0);
 	wq_settings_note_mac(line);
 }
@@ -427,6 +430,30 @@ void wq_mac_net_tick(void)
 		factory_from_scenet();
 }
 
+/* Per network: what the kernel hooks did since last time (they do not log). */
+static void pernet_log(void)
+{
+	static WqMacPernetStats last;
+	WqMacPernetStats n;
+	memset(&n, 0, sizeof(n));
+	wqMacPernetStats(&n);
+	if (n.sets != last.sets) {
+		char line[64], *p = line, *e = line + sizeof(line);
+		p = put(p, e, "mac: per-network address now ");
+		put_mac(p, e, n.last);
+		WQ_LOGI("%s (joins %u, sets %u, skips %u)", line, (unsigned)n.joins,
+		        (unsigned)n.sets, (unsigned)n.skips);
+	}
+	if (n.refused != last.refused || n.scans_skipped != last.scans_skipped)
+		WQ_LOGW("mac: per-network could not set an address (rc %d): %u joins refused, "
+		        "%u scans skipped so far", (int)wq_kret(n.last_rc), (unsigned)n.refused,
+		        (unsigned)n.scans_skipped);
+	last = n;
+}
+
+static int pernet_on(void);
+static void pernet_fallback(int r);
+
 static int watch_thread(SceSize args, void *argp)
 {
 	static const uint8_t zero[6];
@@ -454,12 +481,29 @@ static int watch_thread(SceSize args, void *argp)
 		}
 		if (g_job_busy)
 			continue;
+		if (g_pn_retry && g_mode == 2) {
+			int r = pernet_on();
+			if (r == WQ_OK) {
+				g_pn_retry = 0;
+				WQ_LOGI("mac: per-network on (after a retry)");
+			} else if (r == WQ_ERR_RESOLVE) {
+				g_pn_retry = 0;
+				pernet_fallback(r);
+			}
+			continue;
+		}
 		if (g_retry) {
-			retry_tick();
+			if (g_mode == 2) retry_reset();        /* the join hook owns the address */
+			else             retry_tick();
 			continue;
 		}
 		if (!st.hooked || st.powerups == g_applied_powerups || !can_send())
 			continue;
+		if (g_mode == 2) {                         /* per-network: the kernel join hook sets it */
+			g_applied_powerups = st.powerups;
+			pernet_log();
+			continue;
+		}
 		if (g_mode == 1) {
 			WQ_LOGI("mac: chip powered up (%u) - %s the custom address", (unsigned)st.powerups,
 			        g_fast ? "sending (before the first join)" : "re-sending");
@@ -553,7 +597,7 @@ static int job_thread(SceSize args, void *argp)
 		WQ_LOGI("mac: radio off - the address goes to the chip when it powers up");
 	/* The setting moved on while this one ran: the watcher sends the newest. */
 	const uint8_t *want = g_mode == 1 ? g_custom : g_saved_factory;
-	if (memcmp(g_job_mac, want, 6))
+	if (g_mode != 2 && memcmp(g_job_mac, want, 6))
 		g_retry = 1;
 	g_job_busy = 0;
 	return sceKernelExitDeleteThread(0);
@@ -590,10 +634,129 @@ static int factory(uint8_t *out)
 	return WQ_OK;
 }
 
+int wq_mac_mode(void)
+{
+	return g_mode;
+}
+
+void wq_mac_boot_key(const unsigned key[4])
+{
+	for (int i = 0; i < 4; i++) g_key[i] = key[i];
+}
+
+/* The per-network secret: made once (system RNG), saved as "mac key <32 hex>". */
+static void ensure_key(void)
+{
+	if (g_key[0] | g_key[1] | g_key[2] | g_key[3])
+		return;
+	if (sceKernelGetRandomNumber(g_key, sizeof(g_key)) < 0) {   /* clock fallback */
+		uint32_t x = (uint32_t)sceKernelGetProcessTimeWide();
+		for (int i = 0; i < 4; i++) { x ^= x << 13; x ^= x >> 17; x ^= x << 5; g_key[i] = x * 2654435761u; }
+	}
+	if (!(g_key[0] | g_key[1] | g_key[2] | g_key[3]))
+		g_key[0] = 1;
+	char line[48], *p = line, *end = line + sizeof(line);
+	p = put(p, end, "mac key ");
+	for (int i = 0; i < 4; i++) {                 /* bytes low first, as hex12 reads them */
+		static const char h[] = "0123456789ABCDEF";
+		for (int b = 0; b < 4; b++) {
+			unsigned v = (g_key[i] >> (8 * b)) & 0xFF;
+			if (p < end - 2) { *p++ = h[v >> 4]; *p++ = h[v & 15]; }
+		}
+	}
+	*p = 0;
+	wq_settings_note_mac(line);
+}
+
+/* Per network on in the kernel (hooks + the secret). */
+static int pernet_on(void)
+{
+	WqMacStatus st;
+	ensure_key();
+	kmac(WQ_MAC_OP_HOOK, 0, 0, &st);
+	return wq_kret(wqMacPernet(1, g_key));
+}
+
+static void pernet_off(void)
+{
+	int r = wq_kret(wqMacPernet(0, NULL));
+	if (r != WQ_OK)
+		WQ_LOGW("mac: per-network off failed (%d)", r);
+}
+
+/* This system's driver cannot do it (RESOLVE): back to Default, saved. Other
+ * errors are retried by the watcher instead, so a one-off busy driver never
+ * loses the setting. */
+static void pernet_fallback(int r)
+{
+	WQ_LOGW("mac: per-network not available (%d) - back to Default", r);
+	pernet_off();                            /* lift the kernel's boot hold */
+	g_mode = 0;
+	save_state();
+}
+
+/* Disconnect and join again so the join goes through the hook - not while the
+ * RX buffer's boot power-cycle is still running (state 1; its power-up forces a
+ * fresh join anyway) or the radio is off, asleep or cycling. */
+static void pernet_rejoin(const char *why)
+{
+	if (rxpreset_boot_state() == 1 || !can_send()) {
+		WQ_LOGI("mac: %s - not rejoining now (radio busy; the next join applies it)", why);
+		return;
+	}
+	WQ_LOGI("mac: %s - rejoining", why);
+	wq_net_disconnect();
+	sceKernelDelayThread(1500 * 1000);
+	wq_net_icm_connect();
+}
+
+int wq_mac_boot_done(void)
+{
+	return g_boot_done;
+}
+
+static void mac_boot(int mode, unsigned m0, unsigned m1, unsigned f0, unsigned f1, int rx_cycle);
+
 void wq_mac_boot(int mode, unsigned m0, unsigned m1, unsigned f0, unsigned f1, int rx_cycle)
 {
-	g_mode = mode ? 1 : 0;
+	mac_boot(mode, m0, m1, f0, f1, rx_cycle);
+	g_boot_done = 1;
+}
+
+static void mac_boot(int mode, unsigned m0, unsigned m1, unsigned f0, unsigned f1, int rx_cycle)
+{
+	g_mode = mode == 2 ? 2 : mode ? 1 : 0;
 	g_boot_rx_cycle = rx_cycle;
+	if (g_mode == 2) {                   /* per-network: the kernel join hook sets it */
+		join(g_custom, m0, m1);
+		join(g_saved_factory, f0, f1);
+		/* Normally already on: the kernel starts it from settings.bin before
+		 * SceShell. This hands it the secret again and installs what is left. */
+		int r = pernet_on();
+		for (int i = 0; r == WQ_ERR_BUSY && i < 6; i++) {
+			sceKernelDelayThread(500 * 1000);
+			r = pernet_on();
+		}
+		if (r == WQ_ERR_RESOLVE) {
+			pernet_fallback(r);
+			return;
+		}
+		watch_start();                       /* logs what the kernel did */
+		if (r != WQ_OK) {
+			WQ_LOGW("mac: boot - per-network not on yet (%d) - retrying", r);
+			g_pn_retry = 1;
+			return;
+		}
+		WQ_LOGI("mac: boot - per-network on (set at each join)");
+		/* A join SceShell started before it was on (the kernel's early start
+		 * skipped by its guard): redo it through the hook. */
+		WqMacPernetStats n;
+		memset(&n, 0, sizeof(n));
+		wqMacPernetStats(&n);
+		if (netctl_state() > 0 && n.joins == 0)
+			pernet_rejoin("boot - joined before per-network was on");
+		return;
+	}
 	if (g_mode == 1) {
 		WqMacStatus st;
 		kmac(WQ_MAC_OP_HOOK, 0, 0, &st);    /* hooks in before the boot power-up */
@@ -650,7 +813,7 @@ static int mac_now(uint8_t use[6], uint8_t want[6])
 	memset(&st, 0, sizeof(st));
 	kmac(WQ_MAC_OP_STATUS, 0, 0, &st);         /* reads only */
 	in_use(&st, use);
-	memcpy(want, g_mode == 1 ? g_custom : g_saved_factory, 6);
+	memcpy(want, g_mode == 1 ? g_custom : g_mode == 2 ? use : g_saved_factory, 6);
 	if (!memcmp(want, zero, 6))
 		memcpy(want, use, 6);                    /* own address not known yet */
 	if (!memcmp(use, want, 6))
@@ -665,6 +828,11 @@ static int mac_now(uint8_t use[6], uint8_t want[6])
 int wq_mac_hud(uint8_t mac[6])
 {
 	uint8_t use[6], want[6];
+	if (g_mode == 2) {                         /* the address in use is this network's */
+		mac_now(use, want);
+		memcpy(mac, use, 6);
+		return 1;
+	}
 	if (g_mode != 1)
 		return 0;
 	int busy = mac_now(use, want);
@@ -693,8 +861,8 @@ static char *put_status(char *p, char *end, const WqMacStatus *s)
 	SceNetEtherAddr na;
 	memset(&na, 0, sizeof(na));
 	int nr = sceNetGetMacAddress(&na, 0);
-	p = put(p, end, g_mode ? "mac: custom " : "mac: stock");
-	if (g_mode) p = put_mac(p, end, g_custom);
+	p = put(p, end, g_mode == 2 ? "mac: per-network" : g_mode ? "mac: custom " : "mac: stock");
+	if (g_mode == 1) p = put_mac(p, end, g_custom);
 	p = put(p, end, " | chip-now drv ");  p = put_mac(p, end, s->drv);
 	p = put(p, end, " wlan0 ");
 	if (s->chain == 0) p = put_mac(p, end, s->lladdr);
@@ -745,6 +913,9 @@ int wq_mac_cmd(const char *a, char *out, int outcap)
 			}
 			wq_mac_random(m, f);
 		}
+		if (g_mode == 2)
+			pernet_off();                          /* leaving per-network */
+		g_pn_retry = 0;
 		g_mode = 1;
 		memcpy(g_custom, m, 6);
 		retry_reset();
@@ -759,9 +930,35 @@ int wq_mac_cmd(const char *a, char *out, int outcap)
 		put(p, end, r == WQ_OK ? " - Wi-Fi drops and rejoins" : " - saved, not applied");
 		return r;
 	}
+	/* 'mac pernet on': an address per network, set by the kernel at each
+	 * join; reconnects so it applies now. Leaving it: 'mac stock|custom|set'. */
+	if (IS("pernet")) {
+		if (strcmp(arg, "on") != 0) {
+			put(p, end, "usage: mac pernet on (leave with mac stock|custom|set)");
+			return WQ_ERR_ARG;
+		}
+		int r = pernet_on();
+		if (r != WQ_OK) {
+			put(p, end, "mac: per-network not available on this system");
+			return r;
+		}
+		int was = g_mode;
+		g_mode = 2;
+		g_pn_retry = 0;
+		watch_start();
+		retry_reset();
+		save_state();
+		if (was != 2 && netctl_state() > 0)         /* rejoin: the join sets it */
+			pernet_rejoin("per-network on");
+		put(p, end, "mac: per-network - each network gets its own address at its next join");
+		return WQ_OK;
+	}
 	if (IS("stock")) {
 		uint8_t f[6];
 		int was = g_mode;
+		if (was == 2)
+			pernet_off();                          /* leaving per-network */
+		g_pn_retry = 0;
 		g_mode = 0;
 		retry_reset();
 		save_state();
@@ -785,6 +982,6 @@ int wq_mac_cmd(const char *a, char *out, int outcap)
 		return r;
 	}
 #undef IS
-	put(p, end, "usage: mac status|stock|custom|random|set <addr>");
+	put(p, end, "usage: mac status|stock|custom|random|set <addr>|pernet on");
 	return WQ_ERR_ARG;
 }

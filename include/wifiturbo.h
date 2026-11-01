@@ -22,7 +22,15 @@
 
 /* Release version. The .yml module versions carry major.minor (0.1); bump all
  * three together. Logged in both modules' init banner so a log pins the build. */
-#define WQ_VERSION_STR    "0.5.1"
+#define WQ_VERSION_STR    "0.6.0"
+
+/* Saved settings (user/persist.c writes them; the kernel reads the MAC mode and
+ * the per-network secret at start, kernel/macaddr.c): a magic word, then a
+ * WqUiState. */
+#define WQ_SETTINGS_DIR    "ur0:data/wifiturbo"
+#define WQ_SETTINGS_PATH   WQ_SETTINGS_DIR "/settings.bin"
+#define WQ_SETTINGS_TMP    WQ_SETTINGS_DIR "/settings.tmp"
+#define WQ_SETTINGS_MAGIC  0x54535457u    /* 'WTST' */
 
 #define WQ_SSID_MAX               32          /* each SSID 1..32 chars          */
 

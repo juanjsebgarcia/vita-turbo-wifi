@@ -10,10 +10,10 @@
 #include "log.h"
 #include "../include/wifiturbo.h"
 
-#define WQ_PERSIST_DIR   "ur0:data/wifiturbo"
-#define WQ_PERSIST_PATH  WQ_PERSIST_DIR "/settings.bin"
-#define WQ_PERSIST_TMP   WQ_PERSIST_DIR "/settings.tmp"
-#define WQ_PERSIST_MAGIC 0x54535457u    /* 'WTST' */
+#define WQ_PERSIST_DIR   WQ_SETTINGS_DIR
+#define WQ_PERSIST_PATH  WQ_SETTINGS_PATH
+#define WQ_PERSIST_TMP   WQ_SETTINGS_TMP
+#define WQ_PERSIST_MAGIC WQ_SETTINGS_MAGIC
 
 typedef struct {
 	uint32_t  magic;

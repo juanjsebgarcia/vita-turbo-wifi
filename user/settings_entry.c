@@ -111,10 +111,22 @@ static int settings_track(const char *line, int mac_ok)
 	/* MAC address: user/macaddr.c reports its decisions in this form (the
 	 * 'mac custom|random|set' commands themselves are not settings). */
 	else if (str_pre(line, "mac ") && !mac_ok)   return 0;
-	else if (str_pre(line, "mac state ") && (line[10] == '0' || line[10] == '1') && line[11] == ' ') {
+	else if (str_pre(line, "mac state ") && line[10] >= '0' && line[10] <= '2' && line[11] == ' ') {
 		int w0, w1;
 		g_settings.macmode = line[10] - '0';
 		if (hex12(line + 12, &w0, &w1)) { g_settings.mac0 = w0; g_settings.mac1 = w1; }
+	}
+	else if (str_pre(line, "mac key ") && strnlen(line + 8, 32) == 32) {   /* 32 hex digits */
+		int k[4];
+		for (int i = 0; i < 4; i++) {
+			int w0, w1;
+			char t[13] = { 0 };
+			for (int c = 0; c < 8; c++) t[c] = line[8 + 8 * i + c];
+			for (int c = 8; c < 12; c++) t[c] = '0';
+			if (!hex12(t, &w0, &w1)) return 0;
+			k[i] = w0;
+		}
+		for (int i = 0; i < 4; i++) g_settings.pnkey[i] = k[i];
 	}
 	else if (str_pre(line, "mac factory ")) {
 		int w0, w1;
@@ -181,6 +193,7 @@ void wq_settings_boot(void)
 	rxpreset_boot(g_settings.rxring);
 	/* MAC address: the chip booted on its own address; a saved custom one is
 	 * sent once the link is up, then after every chip power-up. */
+	wq_mac_boot_key((const unsigned *)g_settings.pnkey);
 	wq_mac_boot(g_settings.macmode, (unsigned)g_settings.mac0, (unsigned)g_settings.mac1,
 	            (unsigned)g_settings.fmac0, (unsigned)g_settings.fmac1, g_settings.rxring != 0);
 	set_lock();

@@ -52,6 +52,7 @@
 #include "keepalive.h"         /* wq_gateway_be                               */
 #include "keepwifi.h"          /* keepwifi_power_busy                         */
 #include "netjoin.h"           /* wq_net_icm_connect                          */
+#include "macaddr.h"           /* wq_mac_mode                                 */
 #include "log.h"
 #include "../include/wifiturbo.h"
 #include "../include/wifiturbo_kernel_api.h"   /* wqForceReboot */
@@ -127,7 +128,8 @@ static int gw_answers(unsigned gw)
 
 static int worker_thread(SceSize args, void *argp)
 {
-	sceKernelDelayThread(RXC_REPLY_US);
+	if (g_require_link)                   /* a :1339 / Settings change: let the reply go */
+		sceKernelDelayThread(RXC_REPLY_US);
 	g_phase = 1;
 	/* Round-trip baseline (see the top of the file); only for a cycle that
 	 * needs the link back. */
@@ -257,7 +259,9 @@ static int watchdog_thread(SceSize args, void *argp)
 		 * has started a join 3 s after the radio is back (a MAC address
 		 * re-send would have), ask for one. */
 		if (!g_require_link) {
-			sceKernelDelayThread(3 * 1000 * 1000);
+			/* Custom MAC mode sends its address at this power-up and kicks the
+			 * join itself: give it time to go first. */
+			sceKernelDelayThread((wq_mac_mode() == 1 ? 3 : 1) * 1000 * 1000);
 			int st = -1;
 			if (sceNetCtlInetGetState(&st) == 0 && st == 0 && (sceWlanGetConfiguration() & 9)) {
 				WQ_LOGI("rxcycle: no join started after the cycle - IcmConnect");

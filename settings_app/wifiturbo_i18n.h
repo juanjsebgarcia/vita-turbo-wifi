@@ -116,6 +116,7 @@ enum wq_i18n_id {
 	/* EXPERIMENTAL MAC address rows (the mode list reuses ITEM_STOCK) */
 	WT_I18N_ROW_MACMODE,        /* "MAC address"              */
 	WT_I18N_ITEM_CUSTOM,        /* "Custom"                   */
+	WT_I18N_ITEM_PERNET,        /* "Per network"              */
 	WT_I18N_HINT_MACMODE,
 	WT_I18N_ROW_MACADDR,        /* "Custom MAC address"       */
 	WT_I18N_HINT_MACADDR,

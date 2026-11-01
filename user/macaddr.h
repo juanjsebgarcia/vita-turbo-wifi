@@ -33,6 +33,11 @@ void wq_mac_net_tick(void);
  * use (the custom one did not take). */
 int wq_mac_hud(uint8_t mac[6]);
 
+/* The MAC address mode in use: 0 Default, 1 Custom, 2 Per network. */
+int wq_mac_mode(void);
+/* 1 once wq_mac_boot has set the saved mode (until then wq_mac_mode is 0). */
+int wq_mac_boot_done(void);
+
 /* Published for the Settings page: the address in use (two words, WqUiState
  * form) and 1 while a change is under way. */
 void wq_mac_publish(int *use0, int *use1, int *busy);
@@ -42,5 +47,9 @@ void wq_mac_publish(int *use0, int *use1, int *busy);
  * Custom, sends the address at a chip power-up before the first join: the RX
  * buffer preset's boot cycle (rx_cycle != 0) or one of its own. */
 void wq_mac_boot(int mode, unsigned m0, unsigned m1, unsigned f0, unsigned f1, int rx_cycle);
+
+/* Boot, before wq_mac_boot: the saved per-network secret (4 words, all 0 if
+ * none yet: one is made the first time Per network is chosen). */
+void wq_mac_boot_key(const unsigned key[4]);
 
 #endif /* WIFITURBO_USER_MACADDR_H */
