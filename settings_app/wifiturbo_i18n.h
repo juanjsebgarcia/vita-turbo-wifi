@@ -133,6 +133,13 @@ enum wq_i18n_id {
 	/* Mark after the Current MAC address (in brackets) */
 	WT_I18N_MAC_NOTAPPLIED,     /* "not applied"              */
 
+	/* Roaming signal level list (items are "-65 dBm".."-80 dBm", not
+	 * translated) and the HUD data rate toggle */
+	WT_I18N_ROW_ROAMLVL,        /* "Roaming signal level"     */
+	WT_I18N_HINT_ROAMLVL,
+	WT_I18N_ROW_HUDRATE,        /* "HUD data rate"            */
+	WT_I18N_HINT_HUDRATE,
+
 	WT_I18N_COUNT
 };
 

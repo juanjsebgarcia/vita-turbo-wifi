@@ -25,6 +25,7 @@
 #include "font8x8.h"
 #include "klog.h"
 #include "ht40patch.h"                         /* ht40patch_active            */
+#include "wlanbt.h"                            /* wlanbt_ctx (data rate)      */
 #include "../include/wifiturbo_kernel_api.h"   /* WQ_HUD_STATUS_* bits           */
 
 #define HUD_SCALE      2          /* 8x8 glyph drawn at 2x = 16px tall        */
@@ -118,6 +119,27 @@ static char *put_hex2(char *p, char *end, unsigned v)
 	return p;
 }
 
+/* kbit/s as megabits per second, one decimal ("12.3"). */
+static char *put_mbps(char *p, char *end, uint32_t kbps)
+{
+	uint32_t t = (kbps + 50) / 100;               /* tenths of a Mb/s */
+	p = put_int(p, end, (int)(t / 10));
+	if (p < end - 1) *p++ = '.';
+	if (p < end - 1) *p++ = (char)('0' + t % 10);
+	return p;
+}
+
+/* "DOWN 12.3 Mb/s UP 0.4 Mb/s" (dashes until the first real reading). */
+static char *put_rate_line(char *p, char *end, const WqHudState *s)
+{
+	p = put_str(p, end, "DOWN ");
+	p = s->rate_valid ? put_mbps(p, end, s->down_kbps) : put_str(p, end, "-");
+	p = put_str(p, end, " Mb/s UP ");
+	p = s->rate_valid ? put_mbps(p, end, s->up_kbps) : put_str(p, end, "-");
+	p = put_str(p, end, " Mb/s");
+	return p;
+}
+
 static const char *state_name(int lang, int st)
 {
 	switch (st) {
@@ -129,7 +151,7 @@ static const char *state_name(int lang, int st)
 	}
 }
 
-#define HUD_MAX_LINES  6
+#define HUD_MAX_LINES  8
 #define HUD_LINE_CHARS  96
 
 static void render(uint32_t *fb, int pitch, int w, int h)
@@ -161,6 +183,13 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 		*p = 0;
 		maxlen = (int)(p - lines[n]);
 		n++;
+		if (s->rate_on) {                         /* data rate: its own line */
+			p = lines[n]; end = p + HUD_LINE_CHARS;
+			p = put_rate_line(p, end, s);
+			*p = 0;
+			if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
+			n++;
+		}
 		goto anchor;
 	}
 
@@ -190,6 +219,15 @@ static void render(uint32_t *fb, int pitch, int w, int h)
 	*p = 0;
 	if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
 	n++;
+
+	/* data rate, when on: its own line */
+	if (s->rate_on) {
+		p = lines[n]; end = p + HUD_LINE_CHARS;
+		p = put_rate_line(p, end, s);
+		*p = 0;
+		if ((int)(p - lines[n]) > maxlen) maxlen = (int)(p - lines[n]);
+		n++;
+	}
 
 	/* line 3: BSSID */
 	p = lines[n]; end = p + HUD_LINE_CHARS;
@@ -404,6 +442,45 @@ int hud_set_ingame(int on)
 }
 
 /* Copy the state in from user memory into the back buffer, then flip. */
+/* "HUD data rate": the driver's own byte counters (ctx+0x6c0 received,
+ * ctx+0x6a0 sent; the same struct on both builds), read once per state update
+ * (once a second), as kbit/s since the last read. No hooks, nothing per packet.
+ * 0 if there is no reading yet (first sample, a gap, a counter reset). */
+#define CTX_RX_BYTES  0x6c0u
+#define CTX_TX_BYTES  0x6a0u
+#define RATE_MAX_KBPS 200000u   /* above this the counters were reset: skip */
+
+static int hud_rate(uint32_t *down, uint32_t *up)
+{
+	static uint32_t last_rx, last_tx;
+	static uint64_t last_t;
+	static int have;
+	uintptr_t ctx = wlanbt_ctx();
+	if (!ctx) {
+		have = 0;
+		return 0;
+	}
+	uint32_t rx = *(const volatile uint32_t *)(ctx + CTX_RX_BYTES);
+	uint32_t tx = *(const volatile uint32_t *)(ctx + CTX_TX_BYTES);
+	uint64_t now = ksceKernelGetSystemTimeWide();
+	int ok = 0;
+	if (have && now - last_t >= 200000 && now - last_t < 5000000) {
+		uint64_t dt = now - last_t;
+		uint64_t d = (uint64_t)(uint32_t)(rx - last_rx) * 8000 / dt;
+		uint64_t u = (uint64_t)(uint32_t)(tx - last_tx) * 8000 / dt;
+		if (d <= RATE_MAX_KBPS && u <= RATE_MAX_KBPS) {
+			*down = (uint32_t)d;
+			*up = (uint32_t)u;
+			ok = 1;
+		}
+	}
+	last_rx = rx;
+	last_tx = tx;
+	last_t = now;
+	have = 1;
+	return ok;
+}
+
 int hud_set_state(const WqHudState *state)
 {
 	if (!state)
@@ -414,6 +491,7 @@ int hud_set_state(const WqHudState *state)
 	WqHudState tmp;
 	if (ksceKernelMemcpyUserToKernel(&tmp, state, sizeof(tmp)) < 0)
 		return WQ_ERR_ARG;
+	tmp.rate_valid = tmp.rate_on ? (uint8_t)hud_rate(&tmp.down_kbps, &tmp.up_kbps) : 0;
 
 	ksceKernelLockMutex(g_state_mtx, 1, NULL);
 	int back = g_front ^ 1;

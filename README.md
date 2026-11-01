@@ -105,7 +105,7 @@ buffer drops packets, and TCP slows down after every loss.
   [Quick menu toggles](#quick-menu-toggles-optional).
 - 🧭 **Smart Mesh Roaming**. For mesh and multi-AP setups:
   on a weak signal it rescans every channel and joins the strongest access
-  point of the same network.
+  point of the same network. You choose how weak (-65 to -80 dBm).
 - 🎭 **MAC address (experimental).** Use the Vita's own Wi-Fi MAC address, a
   custom one (type it in, or randomize it), or **a different address for
   every network**, the way phones do it. Set before the Vita connects at boot,
@@ -168,11 +168,13 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 | Option | What it does | Default |
 |---|---|---|
 | **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off on its timer, but the Vita stays awake behind it; a single press of the power button is what puts it to sleep. While charging, standby is allowed so the battery reaches 100%. | On |
-| **Wi-Fi HUD overlay** | *Off*, *Compact* (one line: network, signal, channel) or *Extended* (adds link width, SNR, access point, profile and, in *Custom* or *Per network* MAC address mode, the address in use). | Off |
+| **Wi-Fi HUD overlay** | *Off*, *Compact* (network, signal and channel on one line) or *Extended* (adds link width, SNR, access point, profile and, in *Custom* or *Per network* MAC address mode, the address in use). | Off |
 | **HUD position** | Which corner of the screen the HUD sits in. | Top left |
 | **In-game HUD** | Also shows the HUD over games and apps. When off, it shows only on the Home screen, in Settings and in the quick menu (press the PS button). | Off |
+| **HUD data rate** | Adds a line to the HUD, in both *Compact* and *Extended*, with the current download and upload speed: `DOWN 12.3 Mb/s UP 0.4 Mb/s`. | Off |
 | **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up. (After waking from sleep, Wi-Fi Turbo asks the Vita to connect straight away, with this on or off.) | On |
 | **Smart Mesh Roaming** | On sustained weak signal, rescans and joins the strongest AP of the same network. | Off |
+| **Roaming signal level** | How weak the signal must stay before *Smart Mesh Roaming* looks for a stronger access point: *-65*, *-70*, *-75* or *-80 dBm*. Higher roams sooner. Greyed out while roaming is off. | -75 dBm |
 | **40 MHz** | Lets the Vita negotiate 40 MHz channels. Needs an access point with 2.4 GHz set to 40 MHz. | Off |
 | **Power profile** | *Max performance*, *Balanced* or *Battery saver* (below). | Balanced |
 | **Wi-Fi receive buffer** | *Default*, *Enhanced* or *Maximum* (experimental, below). Changing it turns Wi-Fi off and on for about 20 s. | Default |
@@ -292,9 +294,10 @@ which uses ports 1337 and 1338. Send one command per connection, for example
 | `confirm` / `revert` | Keep or undo a pending remote change |
 | `keepwifi on \| off`, `autoreconnect on \| off` | The Settings toggles |
 | `hud off \| compact \| extended` | The HUD (`on` is *extended*) |
+| `hudrate on \| off` | The HUD data rate line |
 | `mac status`, `mac stock \| custom \| random`, `mac set <addr>`, `mac pernet on` | MAC address: show all copies, or change it |
 | `devmode off` | Close the remote-control port (turn it back on in Settings) |
-| `roam on \| off`, `roam now`, `roam status` | Smart Mesh Roaming |
+| `roam on \| off`, `roam level 65 \| 70 \| 75 \| 80`, `roam now`, `roam status` | Smart Mesh Roaming, and its signal level (-N dBm) |
 | `icm` | Ask the system to connect to your saved networks now |
 | `rxpreset stock \| enhanced \| maximum` | Set the Wi-Fi receive buffer (*stock* is *Default*) |
 | `speedtest <host-ip> <port> [secs] [rcvbuf_kb]` | TCP download into RAM from a host on your LAN |

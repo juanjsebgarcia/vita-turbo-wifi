@@ -37,6 +37,10 @@ const WlanbtLayout *wlanbt_layout(void);
  * WQ_OK and fills *modid / *text, or WQ_ERR_RESOLVE. Either out-pointer may
  * be NULL. */
 int wlanbt_text(uint32_t need, SceUID *modid, uintptr_t *text);
+/* The driver ctx (segment 1 + 0x240, both builds), checked through its self
+ * pointer (ctx+0x28 == ctx); 0 if SceWlanBt is not loaded or it does not
+ * check out. */
+uintptr_t wlanbt_ctx(void);
 
 /* 1 if [addr, addr+len) lies inside SceWlanBt segment `seg`, else 0. */
 int wlanbt_seg_contains(int seg, uintptr_t addr, uint32_t len);

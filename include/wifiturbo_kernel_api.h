@@ -243,6 +243,10 @@ typedef struct {
 	/* The per-network secret (16 random bytes, made once; 0 = not made yet).
 	 * Saved; never shown. */
 	int pnkey[4];
+	/* "Roaming signal level": 65/70/75/80 = -N dBm (0 = not set yet: 75). */
+	int roamlvl;
+	/* "HUD data rate": 1 = a DOWN/UP line on the HUD. */
+	int hudrate;
 } WqUiState;
 
 #define WQ_UI_CMD_MAX 64              /* command buffer size for wqUiSubmit/Drain */

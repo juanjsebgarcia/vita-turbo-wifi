@@ -103,6 +103,12 @@ static int settings_track(const char *line, int mac_ok)
 	else if (str_pre(line, "ht40 "))          g_settings.ht40          = str_pre(line, "ht40 on");
 	/* only 'roam on|off' - 'roam now/status/precheck' must not clear it */
 	else if (str_pre(line, "devmode "))       g_settings.devmode       = str_pre(line, "devmode on");
+	else if (str_pre(line, "roam level ") && line[11] && !line[13] &&
+	         (str_pre(line + 11, "65") || str_pre(line + 11, "70") ||
+	          str_pre(line + 11, "75") || str_pre(line + 11, "80")))
+	                                          g_settings.roamlvl       =
+	             (line[11] - '0') * 10 + (line[12] - '0');
+	else if (str_pre(line, "hudrate "))       g_settings.hudrate       = str_pre(line, "hudrate on");
 	else if (str_pre(line, "roam on") || str_pre(line, "roam off"))
 	                                          g_settings.roam          = str_pre(line, "roam on");
 	else if (str_pre(line, "profile "))       g_settings.profile       =
@@ -184,6 +190,15 @@ void wq_settings_boot(void)
 	                 : "hud off", rep, sizeof(rep));
 	wq_dispatch_exec(g_settings.autoreconnect ? "autoreconnect on" : "autoreconnect off", rep, sizeof(rep));
 	wq_dispatch_exec(g_settings.roam ? "roam on" : "roam off", rep, sizeof(rep));
+	{
+		char lvl[16] = "roam level 75";
+		if (g_settings.roamlvl >= 65 && g_settings.roamlvl <= 80) {
+			lvl[11] = (char)('0' + g_settings.roamlvl / 10);
+			lvl[12] = (char)('0' + g_settings.roamlvl % 10);
+		}
+		wq_dispatch_exec(lvl, rep, sizeof(rep));
+	}
+	wq_dispatch_exec(g_settings.hudrate ? "hudrate on" : "hudrate off", rep, sizeof(rep));
 	wq_dispatch_exec(g_settings.devmode ? "devmode on" : "devmode off", rep, sizeof(rep));
 	/* Profile + 40 MHz: driver patches and the PS flag, applied before the
 	 * first join (or with one reassociation if already connected). */

@@ -26,6 +26,9 @@ void keepwifi_set_autoreconnect(int on);
  * AP of the same SSID. Runs on the keepwifi worker; independent of the keepwifi
  * standby-hold toggle. Default OFF. */
 void keepwifi_set_roam(int on);
+/* "Roaming signal level": 65, 70, 75 (default) or 80, meaning -N dBm. */
+int  keepwifi_set_roam_level(int dbm);
+int  keepwifi_roam_level(void);
 int  keepwifi_roam_enabled(void);
 void keepwifi_roam_now(void);            /* one forced roam on the worker      */
 void keepwifi_set_roam_precheck(int on); /* libnetctl scan veto/target (def 1) */

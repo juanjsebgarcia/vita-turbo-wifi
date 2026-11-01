@@ -89,6 +89,10 @@ typedef struct WqHudState {
 	                            * 3 mac = the address in use, the custom one
 	                            *   did not take */
 	uint8_t  mac[6];           /* ... this one (shown as a HUD line)           */
+	uint8_t  rate_on;          /* "HUD data rate": a DOWN/UP line, both modes  */
+	uint8_t  rate_valid;       /* kernel: the two below are a real reading     */
+	uint32_t down_kbps;        /* kernel fills these from the driver's byte    */
+	uint32_t up_kbps;          /* counters when rate_on (kbit/s)               */
 } WqHudState;
 
 /* HUD overlay screen corner. Config (not per-sample telemetry): set with

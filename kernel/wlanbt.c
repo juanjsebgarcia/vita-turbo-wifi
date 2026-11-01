@@ -116,6 +116,21 @@ int wlanbt_text(uint32_t need, SceUID *modid_out, uintptr_t *text_out)
 	return WQ_OK;
 }
 
+#define CTX_SEG1_OFF  0x240u
+#define CTX_SELF      0x28u
+#define CTX_SPAN      0x708u    /* the highest field read through this ctx + 4 */
+
+uintptr_t wlanbt_ctx(void)
+{
+	SceUID modid = ksceKernelSearchModuleByName("SceWlanBt");
+	uintptr_t ctx = 0;
+	if (modid < 0 || module_get_offset(KERNEL_PID, modid, 1, CTX_SEG1_OFF, &ctx) < 0 || !ctx ||
+	    !wlanbt_seg_contains(1, ctx, CTX_SPAN) ||
+	    *(const volatile uint32_t *)(ctx + CTX_SELF) != (uint32_t)ctx)
+		return 0;
+	return ctx;
+}
+
 int wlanbt_seg_contains(int seg, uintptr_t addr, uint32_t len)
 {
 	SceUID modid = ksceKernelSearchModuleByName("SceWlanBt");

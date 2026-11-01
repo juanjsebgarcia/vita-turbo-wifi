@@ -29,5 +29,6 @@ int  wq_dispatch_exec(const char *line, char *out, int outcap);
  * command. Returns WQ_OK. */
 int  wq_hud_runtime_set(int on);
 void wq_hud_set_compact(int compact);   /* 1 = Compact (one line), 0 = Extended */
+void wq_hud_set_rate(int on);           /* "HUD data rate": a DOWN/UP line       */
 
 #endif /* WIFITURBO_DISPATCH_H */

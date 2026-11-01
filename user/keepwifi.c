@@ -165,12 +165,14 @@ static void icm_test_tick(void)
  * is allowed once per weak episode (recover above WQ_ROAM_OK_DBM, or move to
  * another AP, to re-arm); below WQ_ROAM_DIRE_DBM an empty pre-check counts as
  * unusable, since the join scan sees every channel and the sweep may not. Default OFF ('roam on' / the Settings row). */
-#define WQ_ROAM_WEAK_DBM    (-75)   /* sustained below this => consider roaming  */
-#define WQ_ROAM_OK_DBM      (-70)   /* recover above this => re-arm for next time*/
+/* The weak level is the "Roaming signal level" setting (default -75 dBm); the
+ * re-arm and dire levels keep their distance from it. */
+#define WQ_ROAM_WEAK_DBM    (g_roam_weak_dbm)      /* sustained below => consider roaming */
+#define WQ_ROAM_OK_DBM      (g_roam_weak_dbm + 5)  /* recover above => re-arm             */
 #define WQ_ROAM_WEAK_SECS   6       /* consecutive weak samples before firing    */
 #define WQ_ROAM_COOLDOWN_S  60      /* minimum seconds between roams             */
 #define WQ_ROAM_RECHECK_S   15      /* nothing better found: look again after    */
-#define WQ_ROAM_DIRE_DBM    (-82)   /* this weak: roam blind if pre-check is empty*/
+#define WQ_ROAM_DIRE_DBM    (g_roam_weak_dbm - 7)  /* this weak: roam blind if pre-check is empty */
 #define WQ_ROAM_SWEEPS      3       /* pre-check sweeps merged (off-channel APs  */
                                     /* are hit-and-miss in any single one)       */
 #define WQ_ROAM_MARGIN_DB   6       /* pre-check: candidate must beat cur by this */
@@ -181,6 +183,7 @@ static void icm_test_tick(void)
 #define WQ_ROAM_GIVEUP_S    60      /* then hand back to reconnect_watch         */
 
 static volatile int g_roam_on;
+static volatile int g_roam_weak_dbm = -75;
 static volatile int g_roam_req;     /* ':1339 roam now' -> forced roam          */
 static volatile int g_roam_precheck = 1;
 static int g_roam_weak;             /* consecutive weak samples                  */
@@ -198,6 +201,18 @@ static char g_roam_status[96] = "no roam yet";
 void keepwifi_set_roam(int on)  { g_roam_on = on ? 1 : 0; g_roam_weak = 0;
                                   WQ_LOGI("roam: Smart Mesh Roaming %s", on ? "ON" : "off"); }
 int  keepwifi_roam_enabled(void) { return g_roam_on; }
+
+int keepwifi_set_roam_level(int dbm)
+{
+	if (dbm != 65 && dbm != 70 && dbm != 75 && dbm != 80)
+		return WQ_ERR_ARG;
+	g_roam_weak_dbm = -dbm;
+	g_roam_weak = 0;
+	WQ_LOGI("roam: signal level -%d dBm", dbm);
+	return WQ_OK;
+}
+
+int keepwifi_roam_level(void) { return -g_roam_weak_dbm; }
 void keepwifi_roam_now(void)     { g_roam_req = 1; }
 void keepwifi_set_roam_precheck(int on) { g_roam_precheck = on ? 1 : 0; }
 int  keepwifi_roam_precheck(void) { return g_roam_precheck; }

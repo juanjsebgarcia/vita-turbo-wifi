@@ -1224,6 +1224,102 @@ static const char *const g_tbl[WT_I18N_COUNT][WT_LANG_COUNT] = {
 	"não aplicado",
 	"not applied",
 	"uygulanmadı"
+},
+
+/* WT_I18N_ROW_ROAMLVL - "Roaming signal level" */
+{
+	"ローミングの信号レベル",
+	"Roaming signal level",
+	"Seuil de signal d'itinérance",
+	"Nivel de señal para roaming",
+	"Signalschwelle fürs Roaming",
+	"Soglia di segnale per il roaming",
+	"Signaaldrempel voor roaming",
+	"Nível de sinal para roaming",
+	"Порог сигнала для роуминга",
+	"로밍 신호 수준",
+	"漫遊訊號門檻",
+	"漫游信号阈值",
+	"Verkkovierailun signaalitaso",
+	"Signalnivå för roaming",
+	"Signalniveau for roaming",
+	"Signalnivå for roaming",
+	"Próg sygnału roamingu",
+	"Nível de sinal para roaming",
+	"Roaming signal level",
+	"Dolaşım sinyal eşiği"
+},
+
+/* WT_I18N_HINT_ROAMLVL - "How weak the signal must stay before Smart Mesh Roaming looks for a stronger access point..." */
+{
+	"スマートメッシュローミングがより強いアクセスポイントを探し始める信号の弱さです。-65 dBmが最も早く切り替え、-80 dBmは信号がかなり弱いときだけ切り替えます。初期設定：-75 dBm。",
+	"How weak the signal must stay before Smart Mesh Roaming looks for a stronger access point. -65 dBm switches soonest; -80 dBm only when the signal is very weak. Default: -75 dBm.",
+	"Niveau sous lequel le signal doit rester pour que l'itinérance maillée intelligente cherche un point d'accès plus puissant. -65 dBm bascule le plus tôt ; -80 dBm seulement avec un signal très faible. Par défaut : -75 dBm.",
+	"Lo débil que debe mantenerse la señal antes de que el roaming mesh inteligente busque un punto de acceso más potente. -65 dBm cambia antes; -80 dBm solo con una señal muy débil. Predeterminado: -75 dBm.",
+	"Wie schwach das Signal bleiben muss, bevor das intelligente Mesh-Roaming einen stärkeren Zugangspunkt sucht. -65 dBm wechselt am frühesten, -80 dBm nur bei sehr schwachem Signal. Standard: -75 dBm.",
+	"Quanto debole deve restare il segnale prima che il roaming mesh intelligente cerchi un punto di accesso più potente. -65 dBm cambia prima; -80 dBm solo con segnale molto debole. Predefinito: -75 dBm.",
+	"Hoe zwak het signaal moet blijven voordat slimme mesh-roaming een sterker toegangspunt zoekt. -65 dBm wisselt het snelst, -80 dBm alleen bij een heel zwak signaal. Standaard: -75 dBm.",
+	"Quão fraco o sinal tem de ficar antes de o roaming mesh inteligente procurar um ponto de acesso mais forte. -65 dBm muda mais cedo; -80 dBm só com sinal muito fraco. Predefinição: -75 dBm.",
+	"Насколько слабым должен оставаться сигнал, прежде чем умный mesh-роуминг начнёт искать более сильную точку доступа. -65 dBm переключает раньше всего, -80 dBm — только при очень слабом сигнале. По умолчанию: -75 dBm.",
+	"스마트 메시 로밍이 더 강한 액세스 포인트를 찾기 전에 신호가 얼마나 약해야 하는지 정합니다. -65 dBm은 가장 빨리 전환하고, -80 dBm은 신호가 매우 약할 때만 전환합니다. 기본값: -75 dBm.",
+	"訊號需持續弱到什麼程度，智慧 Mesh 漫遊才會尋找較強的存取點。-65 dBm 最早切換；-80 dBm 只在訊號很弱時切換。預設：-75 dBm。",
+	"信号需持续弱到什么程度，智能 Mesh 漫游才会寻找较强的接入点。-65 dBm 最早切换；-80 dBm 仅在信号很弱时切换。默认：-75 dBm。",
+	"Kuinka heikkona signaalin on pysyttävä, ennen kuin älykäs mesh-verkkovierailu etsii vahvemman tukiaseman. -65 dBm vaihtaa aikaisimmin, -80 dBm vain hyvin heikolla signaalilla. Oletus: -75 dBm.",
+	"Hur svag signalen måste förbli innan smart mesh-roaming letar efter en starkare åtkomstpunkt. -65 dBm byter tidigast, -80 dBm bara vid mycket svag signal. Standard: -75 dBm.",
+	"Hvor svagt signalet skal blive ved med at være, før smart mesh-roaming søger et stærkere adgangspunkt. -65 dBm skifter tidligst, -80 dBm kun ved meget svagt signal. Standard: -75 dBm.",
+	"Hvor svakt signalet må holde seg før smart mesh-roaming leter etter et sterkere tilgangspunkt. -65 dBm bytter tidligst, -80 dBm bare ved svært svakt signal. Standard: -75 dBm.",
+	"Jak słaby musi pozostawać sygnał, zanim inteligentny roaming mesh zacznie szukać silniejszego punktu dostępu. -65 dBm przełącza najwcześniej, -80 dBm tylko przy bardzo słabym sygnale. Domyślnie: -75 dBm.",
+	"Quão fraco o sinal precisa ficar antes de o roaming mesh inteligente procurar um ponto de acesso mais forte. -65 dBm troca mais cedo; -80 dBm só com sinal muito fraco. Padrão: -75 dBm.",
+	"How weak the signal must stay before Smart Mesh Roaming looks for a stronger access point. -65 dBm switches soonest; -80 dBm only when the signal is very weak. Default: -75 dBm.",
+	"Akıllı mesh dolaşımının daha güçlü bir erişim noktası aramadan önce sinyalin ne kadar zayıf kalması gerektiği. -65 dBm en erken geçer, -80 dBm yalnızca sinyal çok zayıfken. Varsayılan: -75 dBm."
+},
+
+/* WT_I18N_ROW_HUDRATE - "HUD data rate" */
+{
+	"HUDに通信速度を表示",
+	"HUD data rate",
+	"Débit sur le HUD",
+	"Velocidad en el HUD",
+	"Datenrate im HUD",
+	"Velocità dati nell'HUD",
+	"Datasnelheid in HUD",
+	"Velocidade no HUD",
+	"Скорость в HUD",
+	"HUD 데이터 속도",
+	"HUD 顯示傳輸速率",
+	"HUD 显示传输速率",
+	"Tiedonsiirtonopeus HUD:ssa",
+	"Datahastighet i HUD",
+	"Datahastighed i HUD",
+	"Datahastighet i HUD",
+	"Szybkość transferu w HUD",
+	"Velocidade no HUD",
+	"HUD data rate",
+	"HUD'da veri hızı"
+},
+
+/* WT_I18N_HINT_HUDRATE - "Also show the current download and upload speed on the HUD, in megabits per second..." */
+{
+	"現在のダウンロード（DOWN）とアップロード（UP）の速度もHUDに1行で表示します（Mb/s）。どのHUD表示でも表示されます。",
+	"Also show the current download (DOWN) and upload (UP) speed on the HUD, on a line of its own, in megabits per second (Mb/s). Shown in every HUD mode.",
+	"Affiche aussi la vitesse actuelle de téléchargement (DOWN) et d'envoi (UP) sur une ligne du HUD, en mégabits par seconde (Mb/s), quel que soit le mode du HUD.",
+	"Muestra también la velocidad actual de descarga (DOWN) y subida (UP) en una línea propia del HUD, en megabits por segundo (Mb/s), en cualquier modo del HUD.",
+	"Zeigt im HUD zusätzlich die aktuelle Download- (DOWN) und Upload-Geschwindigkeit (UP) in einer eigenen Zeile, in Megabit pro Sekunde (Mb/s), in jedem HUD-Modus.",
+	"Mostra anche la velocità attuale di download (DOWN) e upload (UP) su una riga dell'HUD, in megabit al secondo (Mb/s), in qualsiasi modalità dell'HUD.",
+	"Toont ook de huidige download- (DOWN) en uploadsnelheid (UP) op een eigen regel in de HUD, in megabit per seconde (Mb/s), in elke HUD-modus.",
+	"Mostra também a velocidade atual de transferência (DOWN) e envio (UP) numa linha própria do HUD, em megabits por segundo (Mb/s), em qualquer modo do HUD.",
+	"Также показывает в HUD отдельной строкой текущую скорость загрузки (DOWN) и отправки (UP) в мегабитах в секунду (Mb/s), в любом режиме HUD.",
+	"현재 다운로드(DOWN) 및 업로드(UP) 속도도 HUD에 한 줄로 메가비트/초(Mb/s) 단위로 표시합니다. 모든 HUD 모드에서 표시됩니다.",
+	"在 HUD 上另起一行顯示目前的下載（DOWN）與上傳（UP）速度，單位為每秒百萬位元（Mb/s），任何 HUD 模式皆適用。",
+	"在 HUD 上另起一行显示当前的下载（DOWN）和上传（UP）速度，单位为兆比特每秒（Mb/s），适用于所有 HUD 模式。",
+	"Näyttää HUD:ssa omalla rivillään myös nykyisen lataus- (DOWN) ja lähetysnopeuden (UP) megabitteinä sekunnissa (Mb/s) kaikissa HUD-tiloissa.",
+	"Visar även aktuell nedladdnings- (DOWN) och uppladdningshastighet (UP) på en egen rad i HUD:en, i megabit per sekund (Mb/s), i alla HUD-lägen.",
+	"Viser også den aktuelle download- (DOWN) og uploadhastighed (UP) på sin egen linje i HUD'en, i megabit pr. sekund (Mb/s), i alle HUD-tilstande.",
+	"Viser også gjeldende nedlastings- (DOWN) og opplastingshastighet (UP) på en egen linje i HUD-en, i megabit per sekund (Mb/s), i alle HUD-moduser.",
+	"Pokazuje w HUD w osobnym wierszu także bieżącą szybkość pobierania (DOWN) i wysyłania (UP) w megabitach na sekundę (Mb/s), w każdym trybie HUD.",
+	"Mostra também a velocidade atual de download (DOWN) e upload (UP) em uma linha própria do HUD, em megabits por segundo (Mb/s), em qualquer modo do HUD.",
+	"Also show the current download (DOWN) and upload (UP) speed on the HUD, on a line of its own, in megabits per second (Mb/s). Shown in every HUD mode.",
+	"HUD'da geçerli indirme (DOWN) ve yükleme (UP) hızını da ayrı bir satırda, saniyede megabit (Mb/s) olarak gösterir; tüm HUD modlarında."
 }
 };
 

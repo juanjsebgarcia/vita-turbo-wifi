@@ -28,6 +28,7 @@
 static int    g_sampler_run = 0;
 static SceUID g_sampler = -1;
 static volatile int g_hud_compact;   /* HUD mode: 1 = Compact, 0 = Extended */
+static volatile int g_hud_rate;      /* "HUD data rate" (the kernel reads it) */
 
 /* Sample diagnostics once a second and push to the kernel HUD renderer, with
  * the safety harness's one-line status as the HUD notice. */
@@ -43,6 +44,7 @@ static int sampler_thread(SceSize args, void *argp)
 			s.lang = wq_i18n_lang();   /* HUD labels follow the system language */
 			wq_safety_status(s.notice, sizeof(s.notice));
 			s.compact = (uint8_t)g_hud_compact;
+			s.rate_on = (uint8_t)g_hud_rate;
 			s.mac_custom = (uint8_t)wq_mac_hud(s.mac);   /* Custom only: 1 in use, 2 pending, 3 not applied */
 			wqHudSetState(&s);
 		}
@@ -58,6 +60,11 @@ static int sampler_thread(SceSize args, void *argp)
 void wq_hud_set_compact(int compact)
 {
 	g_hud_compact = compact ? 1 : 0;
+}
+
+void wq_hud_set_rate(int on)
+{
+	g_hud_rate = on ? 1 : 0;
 }
 
 int wq_hud_runtime_set(int on)

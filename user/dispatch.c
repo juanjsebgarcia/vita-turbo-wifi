@@ -271,6 +271,15 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 		return WQ_OK;
 	}
 
+	/* 'hudrate on|off' - the "HUD data rate" row: a DOWN/UP line in both HUD
+	 * modes (the kernel reads the driver's byte counters). */
+	if ((a = tok_after(line, "hudrate"))) {
+		int on = str_eq(a, "on");
+		wq_hud_set_rate(on);
+		put(p, end, on ? "hudrate on" : "hudrate off");
+		return WQ_OK;
+	}
+
 	if ((a = tok_after(line, "profile"))) {
 		int prof = -1;
 		if (str_eq(a, "maxperf"))  prof = WQ_PROFILE_MAX_PERF;
@@ -353,6 +362,19 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 			put(p, end, keepwifi_roam_precheck() ? "roam precheck on" : "roam precheck off");
 			return WQ_OK;
 		}
+		/* 'roam level 65|70|75|80' - the "Roaming signal level" row (-N dBm). */
+		if ((b = tok_after(a, "level"))) {
+			int v = 0;
+			while (*b >= '0' && *b <= '9') v = v * 10 + (*b++ - '0');
+			if (keepwifi_set_roam_level(v) != WQ_OK) {
+				put(p, end, "err: roam level 65|70|75|80");
+				return WQ_ERR_ARG;
+			}
+			p = put(p, end, "roam level -");
+			p = put_i(p, end, v);
+			put(p, end, " dBm");
+			return WQ_OK;
+		}
 		if (str_eq(a, "status")) {
 			WqRoamAssistStatus ks;
 			memset(&ks, 0, sizeof(ks));
@@ -385,7 +407,7 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 			               : "roam off");
 			return WQ_OK;
 		}
-		put(p, end, "err: roam on|off|now|precheck on/off|status");
+		put(p, end, "err: roam on|off|level <65-80>|now|precheck on/off|status");
 		return WQ_ERR_ARG;
 	}
 

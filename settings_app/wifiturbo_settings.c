@@ -63,8 +63,15 @@ static const char WT_ROWS[] =
   "<list_item id=\"wt_pos3\" title=\"wt_i_pos3\" value=\"3\"/>"
  "</list>"
  "<toggle_switch id=\"wt_hudgame\" title=\"wt_t_hudgame\" icon=\"tex_spanner\" hint=\"wt_h_hudgame\" key=\"/CONFIG/WIFITURBO/hudgame\"/>"
+ "<toggle_switch id=\"wt_hudrate\" title=\"wt_t_hudrate\" icon=\"tex_spanner\" hint=\"wt_h_hudrate\" key=\"/CONFIG/WIFITURBO/hudrate\"/>"
  "<toggle_switch id=\"wt_autorecon\" title=\"wt_t_autorecon\" icon=\"tex_spanner\" hint=\"wt_h_autorecon\" key=\"/CONFIG/WIFITURBO/autoreconnect\"/>"
  "<toggle_switch id=\"wt_roam\" title=\"wt_t_roam\" icon=\"tex_spanner\" hint=\"wt_h_roam\" key=\"/CONFIG/WIFITURBO/roam\"/>"
+ "<list id=\"wt_roamlvl\" title=\"wt_t_roamlvl\" icon=\"tex_spanner\" hint=\"wt_h_roamlvl\" key=\"/CONFIG/WIFITURBO/roamlvl\">"
+  "<list_item id=\"wt_rl65\" title=\"wt_i_rl65\" value=\"65\"/>"
+  "<list_item id=\"wt_rl70\" title=\"wt_i_rl70\" value=\"70\"/>"
+  "<list_item id=\"wt_rl75\" title=\"wt_i_rl75\" value=\"75\"/>"
+  "<list_item id=\"wt_rl80\" title=\"wt_i_rl80\" value=\"80\"/>"
+ "</list>"
  "<toggle_switch id=\"wt_ht40\" title=\"wt_t_ht40\" icon=\"tex_spanner\" hint=\"wt_h_ht40\" key=\"/CONFIG/WIFITURBO/ht40\"/>"
  "<list id=\"wt_profile\" title=\"wt_t_profile\" icon=\"tex_spanner\" hint=\"wt_h_profile\" key=\"/CONFIG/WIFITURBO/profile\">"
   "<list_item id=\"wt_p0\" title=\"wt_i_maxperf\" value=\"0\"/>"
@@ -154,7 +161,24 @@ static const wt_u16 *WT_TEXT(const char *id)
 	M("wt_i_hudcompact", WT_I18N_ITEM_HUD_COMPACT)
 	M("wt_i_hudextended", WT_I18N_ITEM_HUD_EXTENDED)
 	M("wt_h_maccur",    WT_I18N_HINT_MACCUR)
+	M("wt_t_roamlvl",   WT_I18N_ROW_ROAMLVL)
+	M("wt_h_roamlvl",   WT_I18N_HINT_ROAMLVL)
+	M("wt_t_hudrate",   WT_I18N_ROW_HUDRATE)
+	M("wt_h_hudrate",   WT_I18N_HINT_HUDRATE)
 	#undef M
+	/* Roaming signal level items: "-65 dBm" .. "-80 dBm", the same in every
+	 * language. */
+	if (s_eqn(id, "wt_i_rl", 7) && id[7] >= '6' && id[7] <= '8' && id[8] >= '0' &&
+	    id[8] <= '9' && !id[9]) {
+		static const char dbm[] = " dBm";
+		int n = 0;
+		g_hintbuf[n++] = '-';
+		g_hintbuf[n++] = (wt_u16)id[7];
+		g_hintbuf[n++] = (wt_u16)id[8];
+		for (int i = 0; dbm[i]; i++) g_hintbuf[n++] = (wt_u16)dbm[i];
+		g_hintbuf[n] = 0;
+		return g_hintbuf;
+	}
 	/* The read-only row's one item is the address in use: shown inline. */
 	if (s_eqn(id, "wt_i_maccur", 12)) {
 		char t[18];
@@ -260,6 +284,8 @@ static int *wt_field(const char *name)
 	if (s_eqn(name,"keepwifi",9))       return &g_ui.keepwifi;
 	if (s_eqn(name,"hudpos",7))         return &g_ui.hudpos;
 	if (s_eqn(name,"hudgame",8))        return &g_ui.hudgame;
+	if (s_eqn(name,"hudrate",8))        return &g_ui.hudrate;
+	if (s_eqn(name,"roamlvl",8))        return &g_ui.roamlvl;
 	if (s_eqn(name,"hud",4))            return &g_ui.hud;
 	if (s_eqn(name,"autoreconnect",14)) return &g_ui.autoreconnect;
 	if (s_eqn(name,"roam",5))           return &g_ui.roam;
@@ -309,6 +335,14 @@ static int wt_mac_rows_resolve(void)
 			g_row_show = (int (*)(const char *, int))v;
 	}
 	return g_row_enable && g_row_disable && g_row_show;
+}
+
+/* Roaming signal level: greyed out while Smart Mesh Roaming is off. */
+static void wt_roam_row_update(void)
+{
+	wt_mac_rows_resolve();
+	if (g_row_enable && g_row_disable)
+		(g_ui.roam ? g_row_enable : g_row_disable)("wt_roamlvl");
 }
 
 static void wt_mac_rows_update(void)
@@ -457,10 +491,14 @@ static int get_hook(const char *cat, const char *name, int *val)
 		wt_seed();
 		int *f = wt_field(name);
 		*val = f ? *f : 0;
+		if (s_eqn(name,"roamlvl",8) && !*val)
+			*val = 75;                            /* not set yet: the default */
 		/* Developer mode is the row after the MAC rows: by the time the page
 		 * asks for it, those rows exist and can be greyed out. */
-		if (s_eqn(name,"devmode",8))
+		if (s_eqn(name,"devmode",8)) {
 			wt_mac_rows_update();
+			wt_roam_row_update();
+		}
 		return 0;
 	}
 	return TAI_CONTINUE(int, r_get, cat, name, val);
@@ -495,6 +533,13 @@ static int set_hook(const char *cat, const char *name, int v)
 			else             wt_submit("mac stock", NULL);
 			wt_mac_refresh();
 			return 0;
+		} else if (s_eqn(name,"roamlvl",8)) {
+			const char *pre = "roam level ";           /* -> "roam level 65..80" */
+			if (v != 65 && v != 70 && v != 75 && v != 80)
+				return 0;
+			while (pre[n]) { line[n]=pre[n]; n++; }
+			line[n++] = (char)('0' + v / 10);
+			line[n++] = (char)('0' + v % 10);
 		} else if (s_eqn(name,"hudpos",7)) {
 			const char *pre = "hud pos ";              /* -> "hud pos 0..3" */
 			while (pre[n]) { line[n]=pre[n]; n++; }
@@ -506,6 +551,8 @@ static int set_hook(const char *cat, const char *name, int v)
 		}
 		line[n] = 0;
 		wqUiSubmit(line);
+		if (s_eqn(name,"roam",5))
+			wt_roam_row_update();
 		return 0;
 	}
 	return TAI_CONTINUE(int, r_set, cat, name, v);
