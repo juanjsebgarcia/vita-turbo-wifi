@@ -20,8 +20,8 @@
 
 #include <stdint.h>
 
-/* Release version. The .yml module versions carry major.minor (0.1); bump all
- * three together. Logged in both modules' init banner so a log pins the build. */
+/* Release version. The .yml module versions carry major.minor (0.1); bump them
+ * all together. Logged in the modules' init banners so a log pins the build. */
 #define WQ_VERSION_STR    "0.6.2"
 
 /* Saved settings (user/persist.c writes them; the kernel reads the MAC mode and

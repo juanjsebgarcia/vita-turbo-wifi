@@ -2,10 +2,13 @@
  * log.c - user-side logger implementation. See log.h for the contract.
  *
  * Robustness rules honoured here:
- *   - A single mutex (g_mtx) serialises the ring buffer and the file descriptor.
+ *   - A single mutex (g_mtx) serialises the file descriptor.
  *   - Every IO call is checked and tolerated: a failed open/write never
- *     propagates and never crashes the caller; on a bad fd we keep the ring
- *     buffer working and simply stop touching disk.
+ *     propagates and never crashes the caller; on a bad fd we simply stop
+ *     touching disk.
+ *   - No in-memory copy of the log: `log dump` reads the end of the file. A
+ *     128-line ring cost SceShell 20 KB of its fixed memory for a developer
+ *     command.
  *   - Lines are bounded (WQ_LOG_LINE_MAX) and always NUL-terminated.
  *   - The formatter is self-contained (no libc printf), so there is no hidden
  *     allocation or reentrancy surprise.
@@ -25,14 +28,11 @@ static SceUID g_mtx = -1;
 static int    g_inited = 0;
 static int    g_level  = WQ_LOG_DEFAULT_LEVEL;
 
-static SceUID   g_fd = -1;          /* append fd, or -1 for ring-only          */
+static SceUID   g_fd = -1;          /* append fd, or -1                        */
 static int      g_file_disabled = 0;/* set after a hard open failure           */
 static uint32_t g_file_bytes = 0;   /* bytes written to the current .log       */
 
-/* Ring buffer: fixed lines, overwrite oldest. */
-static char g_ring[WQ_LOG_RING_LINES][WQ_LOG_LINE_MAX];
-static int  g_ring_head = 0;        /* next slot to write                      */
-static int  g_ring_count = 0;       /* how many valid lines (<= RING_LINES)    */
+static uint32_t g_clear_at = 0;     /* `log clear`: dump only lines past this  */
 
 /* ---- tiny locking ------------------------------------------------------- */
 
@@ -137,7 +137,7 @@ static void file_open_locked(void)
 	SceUID fd = sceIoOpen(WQ_LOG_PATH,
 	                      SCE_O_WRONLY | SCE_O_CREAT | SCE_O_APPEND, 0666);
 	if (fd < 0) {
-		g_file_disabled = 1;   /* fall back to ring-only for the session        */
+		g_file_disabled = 1;   /* no file for the session                        */
 		return;
 	}
 	/* Current size, for the rotation threshold. Seek-to-end is cheap and avoids
@@ -157,6 +157,7 @@ static void file_rotate_locked(void)
 	sceIoRemove(WQ_LOG_PATH_1);          /* ignore if absent                     */
 	sceIoRename(WQ_LOG_PATH, WQ_LOG_PATH_1);
 	g_file_bytes = 0;
+	g_clear_at = 0;
 	file_open_locked();                  /* reopens a fresh, empty .log          */
 }
 
@@ -179,7 +180,7 @@ static void file_write_locked(const char *line, int len)
 	int w1 = sceIoWrite(g_fd, line, len);
 	int w2 = sceIoWrite(g_fd, "\n", 1);
 	if (w1 < 0 || w2 < 0) {
-		/* Disk went away (card pulled, full, ...). Keep the ring alive. */
+		/* Disk went away (card pulled, full, ...). */
 		sceIoClose(g_fd);
 		g_fd = -1;
 		g_file_disabled = 1;
@@ -205,8 +206,7 @@ void wq_log_init(void)
 	if (g_inited)
 		return;
 	g_level = WQ_LOG_DEFAULT_LEVEL;
-	g_ring_head = 0;
-	g_ring_count = 0;
+	g_clear_at = 0;
 	g_file_disabled = 0;
 	g_file_bytes = 0;
 	g_fd = -1;
@@ -215,7 +215,7 @@ void wq_log_init(void)
 	g_inited = 1;
 
 	lock();
-	file_open_locked();          /* best-effort; ring works regardless           */
+	file_open_locked();          /* best-effort                                  */
 	unlock();
 }
 
@@ -285,14 +285,7 @@ void wq_logf(int level, const char *fmt, ...)
 	va_end(ap);
 
 	lock();
-	/* Ring buffer: copy into the head slot, advance. */
-	memcpy(g_ring[g_ring_head], line, WQ_LOG_LINE_MAX - 1);   /* line is NUL-terminated */
-	g_ring[g_ring_head][WQ_LOG_LINE_MAX - 1] = 0;
-	g_ring_head = (g_ring_head + 1) % WQ_LOG_RING_LINES;
-	if (g_ring_count < WQ_LOG_RING_LINES)
-		g_ring_count++;
-	/* Disk (best-effort). */
-	file_write_locked(line, pos);
+	file_write_locked(line, pos);   /* best-effort */
 	unlock();
 }
 
@@ -303,31 +296,34 @@ int wq_log_dump(char *out, int outcap)
 	out[0] = 0;
 	int w = 0;
 	lock();
-	/* Oldest first: the oldest valid line is RING_LINES back from head when the
-	 * ring is full, else slot 0. */
-	int start = (g_ring_count < WQ_LOG_RING_LINES)
-	            ? 0
-	            : g_ring_head;   /* head points at the oldest once wrapped        */
-	for (int i = 0; i < g_ring_count; i++) {
-		int idx = (start + i) % WQ_LOG_RING_LINES;
-		const char *s = g_ring[idx];
-		while (*s && w < outcap - 1) out[w++] = *s++;
-		if (*s) {                 /* ran out of room mid-line                     */
-			out[w] = 0;
-			unlock();
-			return w;
+	/* The newest whole lines that fit, from the log file (past `log clear`). */
+	uint32_t from = g_clear_at <= g_file_bytes ? g_clear_at : 0;
+	if (g_file_bytes - from > (uint32_t)(outcap - 1))
+		from = g_file_bytes - (uint32_t)(outcap - 1);
+	SceUID fd = sceIoOpen(WQ_LOG_PATH, SCE_O_RDONLY, 0);
+	if (fd >= 0) {
+		if (sceIoLseek(fd, (SceOff)from, SCE_SEEK_SET) == (SceOff)from) {
+			int n = sceIoRead(fd, out, outcap - 1);
+			w = n > 0 ? n : 0;
 		}
-		if (w < outcap - 1) out[w++] = '\n';
+		sceIoClose(fd);
 	}
 	out[w] = 0;
 	unlock();
+	if (from && from > g_clear_at && w) {   /* cut mid-line: start at the next one */
+		int i = 0;
+		while (i < w && out[i] != '\n') i++;
+		if (i < w) {
+			memmove(out, out + i + 1, (size_t)(w - i));
+			w -= i + 1;
+		}
+	}
 	return w;
 }
 
 void wq_log_clear(void)
 {
 	lock();
-	g_ring_head = 0;
-	g_ring_count = 0;
+	g_clear_at = g_file_bytes;
 	unlock();
 }

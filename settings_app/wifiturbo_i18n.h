@@ -54,19 +54,25 @@ enum wq_i18n_lang_id {
 
 /*
  * String IDs. One per user-visible string in the Wi-Fi Turbo sub-menu.
- * Keep WT_I18N_COUNT last.
+ * Keep WT_I18N_COUNT last, and the quick menu's strings first.
  */
 enum wq_i18n_id {
-	/* Sub-menu title */
+	/* The quick menu's strings come first: its build keeps only these
+	 * (WT_I18N_QM_COUNT, WQ_I18N_QM_ONLY). */
 	WT_I18N_TITLE = 0,          /* "Wi-Fi Turbo"              */
+	WT_I18N_ROW_KEEP,           /* "Keep Wi-Fi on"            */
+	WT_I18N_ROW_POWER,          /* "Power profile"            */
+
+	/* Quick menu profile buttons: short forms that fit the 260 px buttons */
+	WT_I18N_QM_MAXPERF,
+	WT_I18N_QM_BALANCED,
+	WT_I18N_QM_BATTERY,
 
 	/* Row titles */
-	WT_I18N_ROW_KEEP,           /* "Keep Wi-Fi on"            */
 	WT_I18N_ROW_HUD,            /* "Wi-Fi HUD overlay"        */
 	WT_I18N_ROW_RECONNECT,      /* "Auto-reconnect on drop"   */
 	WT_I18N_ROW_ROAM,           /* "Smart Mesh Roaming"       */
 	WT_I18N_ROW_HT40,           /* "40 MHz"    */
-	WT_I18N_ROW_POWER,          /* "Power profile"            */
 
 	/* List items (values for the "Power profile" row) */
 	WT_I18N_ITEM_MAXPERF,       /* "Max performance"          */
@@ -108,11 +114,6 @@ enum wq_i18n_id {
 	WT_I18N_ROW_HUDGAME,        /* "In-game HUD"              */
 	WT_I18N_HINT_HUDGAME,
 
-	/* Quick menu profile buttons: short forms that fit the 260 px buttons */
-	WT_I18N_QM_MAXPERF,
-	WT_I18N_QM_BALANCED,
-	WT_I18N_QM_BATTERY,
-
 	/* EXPERIMENTAL MAC address rows (the mode list reuses ITEM_STOCK) */
 	WT_I18N_ROW_MACMODE,        /* "MAC address"              */
 	WT_I18N_ITEM_CUSTOM,        /* "Custom"                   */
@@ -146,6 +147,9 @@ enum wq_i18n_id {
 
 	WT_I18N_COUNT
 };
+
+/* The quick menu's strings: the IDs below this. */
+#define WT_I18N_QM_COUNT (WT_I18N_QM_BATTERY + 1)
 
 /*
  * Return the current system-language index (0..WT_LANG_COUNT-1).

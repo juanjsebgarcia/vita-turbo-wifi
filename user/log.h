@@ -2,15 +2,14 @@
  * log.h - user-side logger for wifiturbo (the SceShell user module).
  *
  * Goal: make bring-up debuggable. Every interesting event and every error path
- * writes a timestamped line to BOTH a small in-memory ring buffer (dumpable
- * instantly over the dispatcher with no disk) AND, best-effort, an append-only
- * file on disk with simple size-capped rotation.
+ * writes a timestamped line, best-effort, to an append-only file on disk with
+ * simple size-capped rotation. `log dump` reads the end of that file.
  *
  * Design constraints (in the spirit of user/safety.c):
  *   - Never crash and never block the caller: every IO call is failure-tolerant,
- *     lines are bounded, and if the log file cannot be opened we silently fall
- *     back to the ring buffer only.
- *   - Safe to call from any user thread: one mutex guards the ring + the fd.
+ *     lines are bounded, and if the log file cannot be opened we silently stop
+ *     writing it.
+ *   - Safe to call from any user thread: one mutex guards the fd.
  *   - NEVER log key material. SSIDs and BSSIDs are fine; a passphrase/PSK must
  *     never be passed to these functions. The plugin never reads a stored PSK,
  *     so there is nothing to redact in practice - this is a standing rule for
@@ -40,8 +39,7 @@
 #define WQ_LOG_DEFAULT_LEVEL  WQ_LOG_INFO
 #endif
 
-/* Ring buffer + line geometry + on-disk sizing. */
-#define WQ_LOG_RING_LINES  128
+/* Line length + on-disk sizing. */
 #define WQ_LOG_LINE_MAX    160
 #define WQ_LOG_MAX_BYTES   (128 * 1024)   /* rotate .log -> .log.1 past this     */
 
@@ -70,12 +68,12 @@ void wq_logf(int level, const char *fmt, ...);
 #define WQ_LOGD(...) wq_logf(WQ_LOG_DEBUG, __VA_ARGS__)
 #define WQ_LOGT(...) wq_logf(WQ_LOG_TRACE, __VA_ARGS__)
 
-/* Dump the in-memory ring buffer (oldest first) into out, NUL-terminated and
- * bounded by outcap. Returns the number of bytes written. */
+/* The newest whole lines of the log file (oldest first) that fit in out,
+ * NUL-terminated and bounded by outcap. Returns the number of bytes written. */
 int  wq_log_dump(char *out, int outcap);
 
-/* Clear the in-memory ring buffer (the `log clear` command). The on-disk file
- * is left intact. */
+/* The `log clear` command: later dumps show only lines written after it. The
+ * file itself is left intact. */
 void wq_log_clear(void);
 
 #endif /* WIFITURBO_LOG_H */

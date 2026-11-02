@@ -1,6 +1,6 @@
 # vita-turbo-wifi - build and deploy helpers.
 #
-#   make                      build both modules (uses your VitaSDK if $VITASDK
+#   make                      build the modules (uses your VitaSDK if $VITASDK
 #                             is set, otherwise the pinned VitaSDK Docker image)
 #   make install VITA_IP=...  upload the modules to ur0:tai/ over FTP
 #   make deploy  VITA_IP=...  install, then reboot the Vita so they load
@@ -9,14 +9,15 @@
 #   make clean
 #
 # install/deploy/log talk to vitacompanion (FTP on :1337, commands on :1338)
-# running on the Vita. Output: build/wifiturbo_kernel.skprx, build/wifiturbo.suprx
+# running on the Vita. Output: build/wifiturbo_kernel.skprx, build/wifiturbo.suprx,
+# build/wifiturbo_settings.suprx
 
 BUILD   ?= build
 VITA_IP ?=
 # Pinned so every build uses the same toolchain (VitaSDK 2026.08, GCC 15.2).
 VITASDK_IMAGE ?= vitasdk/vitasdk@sha256:8227da1b596d981f4513cd9b36bda1e43857f6dae5bcf4312c1cd40167f7d9bb
 
-MODULES := $(BUILD)/wifiturbo_kernel.skprx $(BUILD)/wifiturbo.suprx
+MODULES := $(BUILD)/wifiturbo_kernel.skprx $(BUILD)/wifiturbo.suprx $(BUILD)/wifiturbo_settings.suprx
 FTP      = ftp://$(VITA_IP):1337
 
 .PHONY: all build install deploy log config clean check-ip
@@ -55,7 +56,7 @@ log: check-ip
 
 config:
 	@printf '%s\n' '*KERNEL' 'ur0:tai/wifiturbo_kernel.skprx' '' '*main' 'ur0:tai/wifiturbo.suprx' '' \
-	  '*NPXS10015' 'ur0:tai/wifiturbo.suprx'
+	  '*NPXS10015' 'ur0:tai/wifiturbo_settings.suprx'
 
 clean:
 	rm -rf $(BUILD) logs

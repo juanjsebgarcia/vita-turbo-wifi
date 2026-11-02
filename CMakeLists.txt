@@ -108,10 +108,10 @@ add_executable(wifiturbo
   user/rxcycle.c
   user/rxpreset.c
   user/macaddr.c
+  user/macfmt.c
   user/persist.c
   user/settings_entry.c
-  settings_app/wifiturbo_settings.c   # Settings-app hooks (run only in NPXS10015)
-  settings_app/wifiturbo_i18n.c       # localised UI strings for the Settings page
+  settings_app/wifiturbo_lang.c       # the system language, for the HUD
 )
 
 # libwifiturbo_kernel_stub.a is produced by vita_create_stubs above (copied
@@ -147,17 +147,46 @@ target_link_libraries(wifiturbo
 # address leaves room regardless; segments are relocated independently at load.
 target_link_options(wifiturbo PRIVATE -nostartfiles -Wl,-Tdata=0x81100000)
 
-# Size-optimise the Settings-page UI code (not timing-sensitive).
-set_source_files_properties(settings_app/wifiturbo_settings.c settings_app/wifiturbo_i18n.c
-  PROPERTIES COMPILE_OPTIONS -Os)
-
 vita_create_self(wifiturbo.suprx wifiturbo
   CONFIG ${CMAKE_SOURCE_DIR}/wifiturbo.yml
   UNSAFE)
 
-# The Settings-app hooks (settings_app/wifiturbo_settings.c) are compiled INTO
-# wifiturbo.suprx above - the one suprx is listed under both *main and *NPXS10015
-# in config.txt, and module_start branches per process. No separate module.
+# --------------------------------------------------------------------------
+# Settings page: wifiturbo_settings.suprx, loaded into the Settings app only
+# --------------------------------------------------------------------------
+#
+# Listed under *NPXS10015 in config.txt. Kept out of wifiturbo.suprx so its
+# code, translations and page buffers cost SceShell nothing. A config.txt from
+# before v0.6.3 lists wifiturbo.suprx under *NPXS10015 instead; that module
+# then loads this one (user/main.c). Same import rules as above.
+
+add_executable(wifiturbo_settings
+  settings_app/settings_main.c
+  settings_app/wifiturbo_settings.c   # the page: Settings-app hooks
+  settings_app/wifiturbo_i18n.c       # its text in 20 languages
+  settings_app/wifiturbo_lang.c
+  user/log.c                          # the shared log file
+  user/macfmt.c                       # parse / randomise the address field
+)
+add_dependencies(wifiturbo_settings wifiturbo-stubs)
+target_link_libraries(wifiturbo_settings
+  taihen_stub
+  ${CMAKE_BINARY_DIR}/libwifiturbo_kernel_stub.a
+  SceLibKernel_stub_weak
+  SceKernelThreadMgr_stub_weak
+  SceIofilemgr_stub_weak
+  SceProcessmgr_stub_weak
+  SceRegistryMgr_stub_weak
+  SceKernelModulemgr_stub_weak
+  SceAppUtil_stub_weak
+)
+# Size-optimised: page UI, not timing-sensitive.
+target_compile_options(wifiturbo_settings PRIVATE -Os)
+target_link_options(wifiturbo_settings PRIVATE -nostartfiles -Wl,-Tdata=0x81100000)
+
+vita_create_self(wifiturbo_settings.suprx wifiturbo_settings
+  CONFIG ${CMAKE_SOURCE_DIR}/wifiturbo_settings.yml
+  UNSAFE)
 
 # --------------------------------------------------------------------------
 # Optional quick-menu plugin: wifiturbo_qm.suprx (a QuickMenuReborn client)
@@ -181,6 +210,7 @@ add_custom_target(qmr-stubs DEPENDS ${QMR_STUB_DIR}/libQuickMenuReborn_stub.a)
 add_executable(wifiturbo_qm
   quickmenu/wifiturbo_qm.c
   settings_app/wifiturbo_i18n.c       # the same localised strings as Settings
+  settings_app/wifiturbo_lang.c
 )
 add_dependencies(wifiturbo_qm wifiturbo-stubs qmr-stubs)
 target_include_directories(wifiturbo_qm PRIVATE ${CMAKE_SOURCE_DIR}/quickmenu)
@@ -195,6 +225,9 @@ target_link_libraries(wifiturbo_qm
 )
 target_link_options(wifiturbo_qm PRIVATE -nostartfiles)
 target_compile_options(wifiturbo_qm PRIVATE -Os)
+
+# Only the quick menu's own strings from the translation table.
+target_compile_definitions(wifiturbo_qm PRIVATE WQ_I18N_QM_ONLY)
 
 vita_create_self(wifiturbo_qm.suprx wifiturbo_qm
   CONFIG ${CMAKE_SOURCE_DIR}/quickmenu/wifiturbo_qm.yml

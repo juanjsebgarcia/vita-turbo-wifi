@@ -380,9 +380,10 @@ others aren't yet). Other versions are not supported. For the 40 MHz option
 you also need an access point with its 2.4 GHz radio set to 40 MHz channel
 width.
 
-1. Download `wifiturbo_kernel.skprx` and `wifiturbo.suprx` from the
+1. Download `wifiturbo_kernel.skprx`, `wifiturbo.suprx` and
+   `wifiturbo_settings.suprx` from the
    [latest release](https://github.com/juanjsebgarcia/vita-turbo-wifi/releases/latest).
-2. Copy both files to `ur0:tai/`, for example with VitaShell over FTP or USB.
+2. Copy the three files to `ur0:tai/`, for example with VitaShell over FTP or USB.
 3. **Find your config file.** If `ux0:tai/config.txt` exists, edit **that**
    one: taiHEN reads it first and ignores `ur0:tai/config.txt`. This is the
    usual case on 3.65–3.68 with h-encore, which creates both files. Otherwise
@@ -395,7 +396,7 @@ width.
    |---|---|
    | `*KERNEL` | `ur0:tai/wifiturbo_kernel.skprx` |
    | `*main` | `ur0:tai/wifiturbo.suprx` |
-   | `*NPXS10015` | `ur0:tai/wifiturbo.suprx` (adds the Settings page) |
+   | `*NPXS10015` | `ur0:tai/wifiturbo_settings.suprx` (adds the Settings page) |
 
    HENkaku's default config already has these sections, so add the lines under
    the existing ones. A typical file afterwards looks like this:
@@ -408,7 +409,7 @@ width.
    ur0:tai/wifiturbo.suprx
    *NPXS10015
    ur0:tai/henkaku.suprx
-   ur0:tai/wifiturbo.suprx
+   ur0:tai/wifiturbo_settings.suprx
    *NPXS10016
    ur0:tai/henkaku.suprx
    ```
@@ -419,14 +420,19 @@ width.
    button quick menu, install `wifiturbo_qm.suprx` as described in
    [Quick menu toggles](#quick-menu-toggles-optional) below.
 
-**Not seeing the Settings entry?** Check that `ur0:tai/wifiturbo.suprx` is
-listed under `*NPXS10015` in the config file taiHEN actually reads
-(`ux0:tai/config.txt` if it exists, see step 3), then reboot.
+**Not seeing the Settings entry?** Check that `ur0:tai/wifiturbo_settings.suprx`
+is in `ur0:tai/` and listed under `*NPXS10015` in the config file taiHEN
+actually reads (`ux0:tai/config.txt` if it exists, see step 3), then reboot.
 
-**To update:** replace both files, and `wifiturbo_qm.suprx` in your
+**To update:** replace the files, and `wifiturbo_qm.suprx` in your
 `QuickMenuReborn` folder if you use the quick menu toggles, then reboot.
+**Updating from v0.6.2 or older:** also copy the new
+`wifiturbo_settings.suprx` to `ur0:tai/`. Your `config.txt` can stay as it is:
+the `ur0:tai/wifiturbo.suprx` line under `*NPXS10015` loads the Settings page
+from the new file. Changing that line to `ur0:tai/wifiturbo_settings.suprx`
+is tidier, but optional.
 **To uninstall:** remove the lines from `config.txt`, reboot, then delete the
-two files (and `wifiturbo_qm.suprx`, if installed) and `ur0:data/wifiturbo/`.
+three files (and `wifiturbo_qm.suprx`, if installed) and `ur0:data/wifiturbo/`.
 
 **If anything goes wrong:** hold **L** while the Vita boots to skip all
 plugins, then remove the lines from `config.txt`.
@@ -462,7 +468,9 @@ make log    VITA_IP=<vita> # fetch the plugin logs
 make config                # print the config.txt lines
 ```
 
-Output: `build/wifiturbo_kernel.skprx` and `build/wifiturbo.suprx`.
+Output: `build/wifiturbo_kernel.skprx`, `build/wifiturbo.suprx` (SceShell),
+`build/wifiturbo_settings.suprx` (the Settings page) and
+`build/wifiturbo_qm.suprx` (the quick menu rows).
 
 ## Measuring it yourself
 

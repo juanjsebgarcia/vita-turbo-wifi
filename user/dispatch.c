@@ -447,7 +447,7 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 			return WQ_OK;
 		}
 		if (!a[0] || str_eq(a, "dump")) {
-			/* Dump the in-memory ring buffer straight into the reply (no disk). */
+			/* The newest lines of the log file, straight into the reply. */
 			wq_log_dump(out, outcap);
 			return WQ_OK;
 		}
@@ -677,7 +677,7 @@ static int dispatch_exec_inner(const char *line, char *out, int outcap)
 /* Public entry: log every command received and its result/return code, then
  * delegate to the core. One wrapper captures all commands/returns without
  * threading a log call through each of the core's many return paths. The `log`
- * command's own ring dump happens inside the core (before this logs the rc),
+ * command's own dump happens inside the core (before this logs the rc),
  * so a dump shows the command that triggered it. */
 int wq_dispatch_exec(const char *line, char *out, int outcap)
 {

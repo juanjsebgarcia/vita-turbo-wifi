@@ -1,5 +1,6 @@
 /*
- * main.c - user module (injected into SceShell).
+ * main.c - user module (injected into SceShell). The Settings page is a
+ * separate module, settings_app/settings_main.c.
  *
  * module_start only brings up the logger and starts the dispatcher worker
  * (user/dispatch.c), which ~3 s later brings up, in order: the auto-revert
@@ -8,6 +9,7 @@
  * :1339 command surface. This file also owns the HUD sampler thread
  * (wq_hud_runtime_set), which feeds the kernel renderer.
  */
+#include <psp2/kernel/modulemgr.h>    /* load the Settings page module */
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/threadmgr.h>
 #include <string.h>
@@ -24,7 +26,10 @@
 #include "../settings_app/wifiturbo_i18n.h"   /* wq_i18n_lang - HUD language   */
 #include "advanced.h"
 #include "keepwifi.h"          /* hud_problem: Wi-Fi wanted, roaming level */
-#include "../settings_app/settings_ui.h"
+
+/* Settings app only: the page module this one loaded, for an older config.txt. */
+#define WQ_SETTINGS_MODULE "ur0:tai/wifiturbo_settings.suprx"
+static SceUID g_settings_mod = -1;
 
 static int    g_sampler_run = 0;
 static SceUID g_sampler = -1;
@@ -155,21 +160,24 @@ int module_start(SceSize argc, const void *args)
 {
 	(void)argc; (void)args;
 
-	/* The ONE wifiturbo.suprx is listed under both *main (SceShell) and
-	 * *NPXS10015 (the Settings app) in config.txt. Branch on the process: the
-	 * Settings app has no SceShell module, so there we install ONLY the Settings
-	 * hooks and run none of the SceShell-side bring-up (dispatcher, keepwifi,
-	 * overlay). The two instances are separate processes and talk
-	 * via the kernel mailbox (uibridge). */
+	/* The Settings page is its own module, wifiturbo_settings.suprx, listed
+	 * under *NPXS10015 in config.txt. A config.txt from before v0.6.3 lists
+	 * this module there instead: in the Settings app, load the page module
+	 * (unless config.txt already did) and run none of the SceShell side. */
 	tai_module_info_t ti;
 	ti.size = sizeof(ti);
 	int in_shell = (taiGetModuleInfo("SceShell", &ti) >= 0);
 	if (!in_shell) {
-		/* Settings-app (NPXS10015) instance: log to the shared file so we can
-		 * see the Settings path too, then install only the Settings hooks. */
 		wq_log_init();
-		WQ_LOGI("[SET] settings-proc instance: installing Settings hooks");
-		wq_settings_hooks_install();
+		ti.size = sizeof(ti);
+		if (taiGetModuleInfo("wifiturbo_settings", &ti) < 0) {
+			int st = 0;
+			g_settings_mod = sceKernelLoadStartModule(WQ_SETTINGS_MODULE, 0, NULL, 0, NULL, &st);
+			if (g_settings_mod < 0)
+				WQ_LOGE("[SET] %s not loaded (0x%08x) - copy it to ur0:tai/ for the "
+				        "Settings page", WQ_SETTINGS_MODULE, (unsigned)g_settings_mod);
+		}
+		wq_log_fini();
 		return 0; /* SCE_KERNEL_START_SUCCESS */
 	}
 
@@ -203,11 +211,12 @@ int module_stop(SceSize argc, const void *args)
 {
 	(void)argc; (void)args;
 
-	/* Settings-app instance: only the Settings hooks were installed. */
+	/* Settings-app instance: only the page module was loaded. */
 	tai_module_info_t ti;
 	ti.size = sizeof(ti);
 	if (taiGetModuleInfo("SceShell", &ti) < 0) {
-		wq_settings_hooks_release();
+		if (g_settings_mod >= 0)
+			sceKernelStopUnloadModule(g_settings_mod, 0, NULL, 0, NULL, NULL);
 		return 0;
 	}
 
