@@ -4,7 +4,7 @@
 
 **The PS Vita's Wi-Fi, fixed: faster, quicker to respond, and it reconnects by itself.**
 
-A taiHEN plugin (kernel + user module) for HENkaku/Ensō on firmware 3.60 to 3.74.
+A taiHEN plugin (kernel + user modules) for HENkaku/Ensō on firmware 3.60 to 3.74.
 
 ![Headline figures](assets/headline.png)
 

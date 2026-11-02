@@ -740,10 +740,8 @@ static SceUID load_hook(const char *path, SceSize args, void *argp,
 	return ret;
 }
 
-/* Called from the main module's module_start ONLY when it detects it is running
- * inside the Settings app process (NPXS10015). The same wifiturbo.suprx is
- * listed under both *main and *NPXS10015; in SceShell it does the normal
- * bring-up, here it installs just these Settings hooks. */
+/* Called from module_start of wifiturbo_settings.suprx (settings_main.c),
+ * which is loaded only into the Settings app process (NPXS10015). */
 void wq_settings_hooks_install(void)
 {
 	g_h_load = taiHookFunctionImport(&r_load, "SceSettings",

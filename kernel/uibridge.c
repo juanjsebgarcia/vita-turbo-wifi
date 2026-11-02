@@ -4,7 +4,8 @@
  * SceWifiTurbo syscall library, which is reachable from any process, so it needs
  * no network and survives Wi-Fi down.
  *
- *   NPXS10015 (wifiturbo.suprx, Settings hooks): wqUiSubmit(cmd), wqUiReadState(&st)
+ *   NPXS10015 (wifiturbo_settings.suprx, the Settings page): wqUiSubmit(cmd),
+ *                                              wqUiReadState(&st)
  *   SceShell  (wifiturbo.suprx, off the tick): wqUiDrain(&cmd) -> wq_dispatch_exec,
  *                                              wqUiPublish(&st)
  *

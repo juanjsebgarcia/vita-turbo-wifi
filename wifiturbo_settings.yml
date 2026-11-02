@@ -2,7 +2,7 @@ wifiturbo_settings:
   attributes: 0
   version:
     major: 0
-    minor: 6
+    minor: 7
   main:
     start: module_start
     stop: module_stop

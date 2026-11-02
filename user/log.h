@@ -1,5 +1,6 @@
 /*
- * log.h - user-side logger for wifiturbo (the SceShell user module).
+ * log.h - user-side logger for the user modules (wifiturbo.suprx in SceShell,
+ * wifiturbo_settings.suprx in the Settings app); both append to one file.
  *
  * Goal: make bring-up debuggable. Every interesting event and every error path
  * writes a timestamped line, best-effort, to an append-only file on disk with

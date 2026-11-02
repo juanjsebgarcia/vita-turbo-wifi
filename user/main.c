@@ -161,7 +161,7 @@ int module_start(SceSize argc, const void *args)
 	(void)argc; (void)args;
 
 	/* The Settings page is its own module, wifiturbo_settings.suprx, listed
-	 * under *NPXS10015 in config.txt. A config.txt from before v0.6.3 lists
+	 * under *NPXS10015 in config.txt. A config.txt from before v0.7.0 lists
 	 * this module there instead: in the Settings app, load the page module
 	 * (unless config.txt already did) and run none of the SceShell side. */
 	tai_module_info_t ti;

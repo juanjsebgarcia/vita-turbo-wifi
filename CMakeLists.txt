@@ -1,11 +1,13 @@
 # CMake build for Wi-Fi Turbo, the PS Vita Wi-Fi plugin (firmware 3.60-3.74, taiHEN/HENkaku).
 #
-# Two artifacts:
-#   wifiturbo_kernel.skprx - kernel module: SceWlanBt patches/hooks + HUD hook,
-#                            and the user-callable SceWifiTurbo syscall library.
-#   wifiturbo.suprx        - user module (loaded into SceShell): HUD feed, netctl
-#                            reads, reconnect/roaming, safety harness,
-#                            dispatcher, Settings page.
+# Four artifacts:
+#   wifiturbo_kernel.skprx   - kernel module: SceWlanBt patches/hooks + HUD hook,
+#                              and the user-callable SceWifiTurbo syscall library.
+#   wifiturbo.suprx          - user module (loaded into SceShell): HUD feed, netctl
+#                              reads, reconnect/roaming, safety harness,
+#                              dispatcher.
+#   wifiturbo_settings.suprx - the Settings page (loaded into the Settings app).
+#   wifiturbo_qm.suprx       - optional quick menu rows (QuickMenuReborn).
 #
 # BUILD REQUIREMENTS: the VitaSDK toolchain (https://vitasdk.org) and taiHEN's
 # headers/stubs (taihen):
@@ -157,7 +159,7 @@ vita_create_self(wifiturbo.suprx wifiturbo
 #
 # Listed under *NPXS10015 in config.txt. Kept out of wifiturbo.suprx so its
 # code, translations and page buffers cost SceShell nothing. A config.txt from
-# before v0.6.3 lists wifiturbo.suprx under *NPXS10015 instead; that module
+# before v0.7.0 lists wifiturbo.suprx under *NPXS10015 instead; that module
 # then loads this one (user/main.c). Same import rules as above.
 
 add_executable(wifiturbo_settings
