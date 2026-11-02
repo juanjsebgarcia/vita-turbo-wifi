@@ -55,11 +55,26 @@
 extern int sceWlanGetConfiguration(void);   /* NID 0x70AF9BD6; &9 = radio on    */
 extern int sceWlanSetConfiguration(int en); /* NID 0xDBE8AEF2; 1 = enable radio */
 
+/* Airplane mode (/CONFIG/SYSTEM flight_mode) switches the radio off but leaves
+ * wifi_flag set, so while it is on, only a radio the user switched back on
+ * (Wi-Fi allowed in airplane mode) counts as wanted; an off radio is left off. */
 static int user_wants_wifi(void)
 {
+	static int last_air = -1;
 	int v = 0;
 	/* default to "wants wifi" if the key can't be read */
-	return sceRegMgrGetKeyInt("/CONFIG/NET", "wifi_flag", &v) == 0 ? (v != 0) : 1;
+	if (sceRegMgrGetKeyInt("/CONFIG/NET", "wifi_flag", &v) == 0 && v == 0)
+		return 0;
+	int air = 0;
+	if (sceRegMgrGetKeyInt("/CONFIG/SYSTEM", "flight_mode", &air) != 0)
+		air = 0;
+	air = air != 0;
+	if (air != last_air) {
+		if (last_air >= 0 || air)
+			WQ_LOGI("keepwifi: airplane mode %s", air ? "on - Wi-Fi left as the user sets it" : "off");
+		last_air = air;
+	}
+	return air ? (sceWlanGetConfiguration() & 9) != 0 : 1;
 }
 
 /* Seconds spent continuously disconnected (reset on connect / unknown state). */
