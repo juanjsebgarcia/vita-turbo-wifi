@@ -90,8 +90,9 @@ buffer drops packets, and TCP slows down after every loss.
   itself, so downloads and remote sessions don't die. The screen still dims and
   turns off on its timer, but **a dark screen is not sleep**: the Vita stays
   awake and connected behind it, and keeps using battery. To put it to sleep,
-  **press the power button once**; that always sleeps it, even with this on
-  (hold the button for the power menu as usual). While charging, standby is
+  **press the power button once**: the Vita then sleeps just as it would
+  without Wi-Fi Turbo, and music from the Music app keeps playing with the
+  screen off (hold the button for the power menu as usual). While charging, standby is
   allowed so the battery reaches 100%.
 - 📡 **Live HUD.** An on-screen overlay read live from the driver, in two
   sizes: *Compact* is one line (network, signal, channel); *Extended* adds

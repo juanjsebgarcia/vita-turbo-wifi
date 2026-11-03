@@ -37,6 +37,7 @@
 #include <psp2/kernel/modulemgr.h>  /* sceKernelGetSystemSwVersion (boot log)   */
 #include <psp2/kernel/sysmem.h>     /* speedtest buffer, only while a test runs */
 #include <string.h>
+#include <taihen.h>                 /* taiGetModuleInfo (boot log: real firmware) */
 
 #include "dispatch.h"
 #include "diag.h"
@@ -744,6 +745,29 @@ static const char *imports_missing(void)
 	return NULL;
 }
 
+/* The firmware the console really runs. HENkaku's version spoofing changes
+ * what sceKernelGetSystemSwVersion reports, but not SceShell itself, and each
+ * firmware ships its own SceShell build. */
+static void log_shell_firmware(void)
+{
+	static const struct { unsigned nid; const char *ver; } builds[] = {
+		{ 0x0552F692, "3.60" }, { 0x532155E5, "3.61" }, { 0xBB4B0A3E, "3.63" },
+		{ 0x5549BF1F, "3.65" }, { 0x34B4D82E, "3.67" }, { 0x12DAC0F3, "3.68" },
+		{ 0x0703C828, "3.69" }, { 0x2053B5A5, "3.70" }, { 0xF476E785, "3.71" },
+		{ 0x939FFBE9, "3.72" }, { 0x734D476A, "3.73" }, { 0x51CB6207, "3.74" },
+	};
+	tai_module_info_t ti;
+	ti.size = sizeof(ti);
+	if (taiGetModuleInfo("SceShell", &ti) < 0)
+		return;
+	for (unsigned i = 0; i < sizeof(builds) / sizeof(builds[0]); i++)
+		if (builds[i].nid == (unsigned)ti.module_nid) {
+			WQ_LOGI("firmware: home screen is the %s build", builds[i].ver);
+			return;
+		}
+	WQ_LOGI("firmware: home screen build 0x%08x not known", (unsigned)ti.module_nid);
+}
+
 static int server_thread(SceSize args, void *argp)
 {
 	(void)args; (void)argp;
@@ -765,6 +789,7 @@ static int server_thread(SceSize args, void *argp)
 	sw.size = sizeof(sw);
 	if (sceKernelGetSystemSwVersion(&sw) >= 0)
 		WQ_LOGI("firmware: reports %s (0x%08x)", sw.versionString, (unsigned)sw.version);
+	log_shell_firmware();
 
 	/* Everything below touches SceNet/SceNetCtl: wait for SceShell to have
 	 * initialised it, so we never initialise it first. */

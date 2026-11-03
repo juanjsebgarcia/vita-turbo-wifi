@@ -22,7 +22,7 @@
 
 /* Release version. The .yml module versions carry major.minor (0.1); bump them
  * all together. Logged in the modules' init banners so a log pins the build. */
-#define WQ_VERSION_STR    "0.7.0"
+#define WQ_VERSION_STR    "0.7.1"
 
 /* Saved settings (user/persist.c writes them; the kernel reads the MAC mode and
  * the per-network secret at start, kernel/macaddr.c): a magic word, then a

@@ -11,10 +11,10 @@
  * A 1 Hz sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND) keeps
  * the auto-standby timer from ever expiring, and leaves the screen's dim/off
  * timers alone. No power lock: the tick alone is enough. While ticking, a
- * power-button press only turns the screen off - SceShell does not sleep
- * (tested on device; with nothing ticking, it sleeps). So a ScePower callback
- * watches for the press: it stops the tick and, if the Vita has not started
- * sleeping on its own shortly after, requests the suspend itself. The hold
+ * power-button press only turns the screen off - SceShell does not sleep, even
+ * after the tick stops (tested on device). So a ScePower callback watches for
+ * the press: it stops the tick and requests the suspend itself, unless music
+ * is playing - stock lets the Music app play on with the screen off. The hold
  * comes back on resume.
  */
 #include <psp2/kernel/processmgr.h>   /* sceKernelPowerTick                      */
@@ -22,8 +22,10 @@
 #include <psp2/power.h>               /* scePowerIsPowerOnline / IsBatteryCharging / GetBatteryLifePercent */
 
 #include <psp2/registrymgr.h>   /* sceRegMgrGetKeyInt - the user's Wi-Fi intent  */
+#include <psp2/audioout.h>      /* sceAudioOutGetConfig/GetRestSample - music playing */
 
 #include "keepwifi.h"
+#include "imports.h"          /* wq_import_ready - SceAudio may load after us  */
 #include "keepalive.h"        /* keepalive_tick - gateway heartbeat, anti-idle */
 #include "netjoin.h"          /* wq_net_rejoin - command the netctl daemon      */
 #include "settings_entry.h"   /* wq_settings_pump - driven off this tick       */
@@ -592,15 +594,40 @@ static volatile int g_run     = 0;
 /* ---- power button => let the Vita sleep --------------------------------------
  * The press arrives as SCE_POWER_CB_BUTTON_POWER_PRESS on a ScePower callback
  * (SceShell is a system process, so the button bits are delivered). From then
- * on the hold is released; WQ_SLEEP_GRACE_S later, if no SYSTEM_SUSPEND came,
- * scePowerRequestSuspend() puts the Vita to sleep. If the screen comes back
+ * on the hold is released; WQ_SLEEP_GRACE_S later scePowerRequestSuspend()
+ * puts the Vita to sleep - unless music is playing (music_playing()). Then it
+ * stays awake with the screen off, as stock, and is checked again each second,
+ * so it sleeps once the music ends or is paused. If the screen comes back
  * first (APP_RESUMING: the user pressed again or touched a button), the sleep
  * is cancelled and the hold returns. A resume clears it all. */
 #define WQ_SLEEP_GRACE_S  2
 
+/* The Music app plays from inside SceShell, through SceShell's background-music
+ * audio port, which SceAudio numbers 0x100 in every process. We run in SceShell
+ * too, so we can ask about it directly: open, with samples queued = playing.
+ * Paused, the queue drains to 0; a few looks 20 ms apart skip a momentary 0. */
+#define WQ_BGM_PORT  0x100
+
+static int music_playing(void)
+{
+	if (!wq_import_ready((const void *)sceAudioOutGetRestSample) ||
+	    !wq_import_ready((const void *)sceAudioOutGetConfig))
+		return 0;
+	if (sceAudioOutGetConfig(WQ_BGM_PORT, SCE_AUDIO_OUT_CONFIG_TYPE_LEN) <= 0)
+		return 0;                             /* no music port open */
+	for (int i = 0; i < 4; i++) {
+		if (sceAudioOutGetRestSample(WQ_BGM_PORT) > 0)
+			return 1;
+		sceKernelDelayThread(20 * 1000);
+	}
+	return 0;                                 /* open, but paused or stopped */
+}
+
 static volatile int g_sleep_req;     /* power button pressed, sleep pending       */
 static volatile int g_suspending;    /* SYSTEM_SUSPEND seen, not yet resumed      */
 static int          g_sleep_t;       /* seconds since the press                   */
+static int          g_sleep_sent;    /* suspend requested for this press          */
+static int          g_sleep_held;    /* logged that music holds it awake          */
 
 int keepwifi_power_busy(void)
 {
@@ -614,6 +641,8 @@ static int power_cb(int notify_id, int notify_count, int info, void *common)
 	if (info & SCE_POWER_CB_BUTTON_POWER_PRESS) {
 		g_sleep_req = 1;
 		g_sleep_t = 0;
+		g_sleep_sent = 0;
+		g_sleep_held = 0;
 	}
 	if (info & SCE_POWER_CB_SYSTEM_SUSPEND)
 		g_suspending = 1;
@@ -634,14 +663,23 @@ static int power_cb(int notify_id, int notify_count, int info, void *common)
 /* One second of a pending sleep request. */
 static void sleep_tick(void)
 {
-	if (!g_sleep_req || g_suspending)
+	if (!g_sleep_req || g_suspending || g_sleep_sent)
 		return;
-	if (++g_sleep_t == WQ_SLEEP_GRACE_S) {
-		WQ_LOGW("keepwifi: power button - requesting sleep");
-		int r = scePowerRequestSuspend();
-		if (r < 0)
-			WQ_LOGE("keepwifi: scePowerRequestSuspend failed (0x%08x)", (unsigned)r);
+	if (++g_sleep_t < WQ_SLEEP_GRACE_S)
+		return;
+	if (music_playing()) {
+		if (!g_sleep_held) {
+			g_sleep_held = 1;
+			WQ_LOGI("keepwifi: power button - music playing, screen off only "
+			        "until it stops");
+		}
+		return;
 	}
+	g_sleep_sent = 1;
+	WQ_LOGW("keepwifi: power button - requesting sleep");
+	int r = scePowerRequestSuspend();
+	if (r < 0)
+		WQ_LOGE("keepwifi: scePowerRequestSuspend failed (0x%08x)", (unsigned)r);
 }
 
 /* Should we hold auto-suspend off this tick?
