@@ -79,6 +79,11 @@ static int user_wants_wifi(void)
 	return air ? (sceWlanGetConfiguration() & 9) != 0 : 1;
 }
 
+/* user_wants_wifi() as the network thread last read it, once a second. Read
+ * here instead of calling it again (only main.c at boot still calls it, via
+ * keepwifi_wifi_wanted()). Wi-Fi off = no standby hold. */
+static volatile int g_wifi_wanted = 1;
+
 /* Seconds spent continuously disconnected (reset on connect / unknown state). */
 static int g_disc_ticks;
 
@@ -501,8 +506,8 @@ static void smart_roam(void)
 
 static void reconnect_watch(void)
 {
-	if (!user_wants_wifi())
-		return;                         /* user disabled Wi-Fi - respect it     */
+	if (!g_wifi_wanted)             /* this loop's read: Wi-Fi off - respect it */
+		return;
 	WqHudState s;
 	int ok = diag_sample(&s) == WQ_OK;
 	log_state(&s, ok);
@@ -693,20 +698,48 @@ static void sleep_tick(void)
  * that case is unaffected and Wi-Fi stays up. Any read failure is treated as
  * "on battery" so Wi-Fi is kept up (fail toward the feature, never toward a
  * silent charge cap). See GitHub issue #6. */
-static int keepwifi_hold_suspend(void)
+/* Why the standby hold is on or off; the power thread logs each change, so a
+ * log shows when the Vita was allowed to sleep on its timer and why. */
+enum {
+	HOLD_ON_BATTERY,      /* held: on battery                              */
+	HOLD_ON_FULL,         /* held: on power, battery full                  */
+	FREE_KEEPWIFI_OFF,    /* released: Keep Wi-Fi on is off                */
+	FREE_SLEEP_REQ,       /* released: power button pressed                */
+	FREE_NET_STALLED,     /* released: network thread hung                 */
+	FREE_WIFI_OFF,        /* released: Wi-Fi or airplane mode has it off   */
+	FREE_CHARGING,        /* released: charging, so it can reach 100%      */
+};
+static const char *const hold_reason_name[] = {
+	"held (on battery)", "held (on power, battery full)",
+	"released (Keep Wi-Fi on is off)", "released (power button)",
+	"released (network thread stuck)", "released (Wi-Fi off or airplane mode)",
+	"released (charging)",
+};
+
+static int keepwifi_hold_reason(void)
 {
-	if (!g_enabled || g_sleep_req)    /* power button pressed: let it sleep  */
-		return 0;
+	if (!g_enabled)
+		return FREE_KEEPWIFI_OFF;
+	if (g_sleep_req)                  /* power button pressed: let it sleep  */
+		return FREE_SLEEP_REQ;
 	if (g_net_stalled)                /* network side hung: hold nothing     */
-		return 0;
+		return FREE_NET_STALLED;
+	if (!g_wifi_wanted)               /* Wi-Fi or airplane mode off: nothing to
+	                                   * keep up, so standby as stock does  */
+		return FREE_WIFI_OFF;
 	if (scePowerIsPowerOnline() != 1)   /* on battery (or unknown) -> keep Wi-Fi up */
-		return 1;
+		return HOLD_ON_BATTERY;
 	/* On external power: hold only once the battery is full, so charging can
 	 * complete. IsBatteryCharging can read 0 at the stalled cap, so also gate on
 	 * the percentage. */
 	if (scePowerGetBatteryLifePercent() >= 100 && scePowerIsBatteryCharging() != 1)
-		return 1;
-	return 0;                           /* charging/topping up -> allow standby   */
+		return HOLD_ON_FULL;
+	return FREE_CHARGING;               /* charging/topping up -> allow standby   */
+}
+
+static int keepwifi_hold_suspend(void)
+{
+	return keepwifi_hold_reason() <= HOLD_ON_FULL;
 }
 
 #define WQ_NET_STALL_S  60      /* network thread silent this long = hung */
@@ -716,12 +749,13 @@ static int net_thread(SceSize args, void *argp)
 {
 	(void)args; (void)argp;
 	while (g_run) {
+		g_wifi_wanted = user_wants_wifi();   /* two registry reads: cheap, once a second */
 		if (g_icmtest) {
 			icm_test_tick();     /* owns reconnects while the test runs         */
 		} else if (g_roam_t > 0) {
 			roam_tick();         /* owns reconnects while a roam is in flight   */
 		} else {
-			if (g_enabled)
+			if (g_enabled && g_wifi_wanted)
 				keepalive_tick();    /* heartbeat: stop the AP ageing an idle Vita  */
 			if (g_autorecon)
 				reconnect_watch();   /* auto-reconnect on => reconnect if dropped   */
@@ -751,6 +785,7 @@ static int keepwifi_thread(SceSize args, void *argp)
 		        "will not sleep the Vita while Keep Wi-Fi is on", (unsigned)r);
 	unsigned last_beat = g_net_beat;
 	int still = 0;
+	int last_why = -1;
 	while (g_run) {
 		sleep_tick();
 		/* Network thread heartbeat. Suspended time does not count: the
@@ -767,7 +802,12 @@ static int keepwifi_thread(SceSize args, void *argp)
 			WQ_LOGE("keepwifi: network thread stuck %d s (netctl not answering?) - "
 			        "standby hold released", still);
 		}
-		if (keepwifi_hold_suspend())      /* standby only: screen may still dim/turn off */
+		int why = keepwifi_hold_reason();
+		if (why != last_why) {             /* on change only: one line per switch */
+			WQ_LOGI("keepwifi: standby hold %s", hold_reason_name[why]);
+			last_why = why;
+		}
+		if (why <= HOLD_ON_FULL)          /* standby only: screen may still dim/turn off */
 			sceKernelPowerTick(SCE_KERNEL_POWER_TICK_DISABLE_AUTO_SUSPEND);
 		sceKernelDelayThreadCB(1000 * 1000);
 	}

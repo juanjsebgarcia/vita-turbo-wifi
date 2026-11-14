@@ -93,7 +93,8 @@ buffer drops packets, and TCP slows down after every loss.
   **press the power button once**: the Vita then sleeps just as it would
   without Wi-Fi Turbo, and music from the Music app keeps playing with the
   screen off (hold the button for the power menu as usual). While charging, standby is
-  allowed so the battery reaches 100%.
+  allowed so the battery reaches 100%. With Wi-Fi switched off, or airplane mode
+  on, there is nothing to keep up, so the Vita sleeps on its timer as usual.
 - 📡 **Live HUD.** An on-screen overlay read live from the driver, in two
   sizes: *Compact* is one line (network, signal, channel); *Extended* adds
   the link width, **SNR**, access point, active profile and, in *Custom* MAC
@@ -126,7 +127,7 @@ buffer drops packets, and TCP slows down after every loss.
 
 ### 📦 Downloading large files
 Moving files onto the Vita over Wi-Fi (for example with VitaShell's FTP
-server) runs over TCP, which was **about 20% faster** with Turbo in our tests.
+server) runs over TCP, which was **about 20% faster** with Turbo in my tests.
 How much you gain depends on the app's receive buffer, since the Vita's own TCP
 stack tops out around 40 Mbps. *Keep Wi-Fi on* also stops long transfers dying
 when the screen sleeps, and auto-reconnect picks up again after a drop.
@@ -168,7 +169,7 @@ drops on its own, keeps the console awake, and makes every round trip snappier.
 
 | Option | What it does | Default |
 |---|---|---|
-| **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off on its timer, but the Vita stays awake behind it; a single press of the power button is what puts it to sleep. While charging, standby is allowed so the battery reaches 100%. | On |
+| **Keep Wi-Fi on** | Prevents automatic standby (deep sleep) and sends a small idle keep-alive, so the console and the link stay up. The screen still turns off on its timer, but the Vita stays awake behind it; a single press of the power button is what puts it to sleep. While charging, or with Wi-Fi off or airplane mode on, standby is allowed as usual. | On |
 | **Auto-reconnect on drop** | Reconnects automatically whenever the link is lost, including at boot when the Vita's own auto-join gives up, and straight after waking from sleep (it asks the Vita to connect at once instead of waiting for its own retry). It never turns Wi-Fi back on after you switch it off, or while airplane mode is on. | On |
 | **Smart Mesh Roaming** | On sustained weak signal, rescans and joins the strongest AP of the same network. | Off |
 | **Roaming signal level** | How weak the signal must stay before *Smart Mesh Roaming* looks for a stronger access point: *-65*, *-70*, *-75* or *-80 dBm*. Higher roams sooner. Greyed out while roaming is off. | -75 dBm |
